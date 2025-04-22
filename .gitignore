@@ -172,3 +172,8 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# FILES
+data/
+!data/points_of_interest.kmz
+!data/route.kmz
