@@ -17,7 +17,7 @@ def read_var(subject_id: int, variable: str):
     Returns:
         pd.DataFrame: The loaded variable as a pandas DataFrame.
     """
-    filename = f"../data/S{subject_id:02d}/S{subject_id}{variable}.mat"
+    filename = f"../data/raw_data/S{subject_id:02d}/S{subject_id}{variable}.mat"
     if not os.path.exists(filename):
         raise FileNotFoundError(f"{filename} not found.")
     
