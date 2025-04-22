@@ -1,4 +1,5 @@
 from scipy.io import loadmat
+from scipy.interpolate import interp1d
 import pandas as pd
 import numpy as np
 import os
@@ -89,4 +90,51 @@ def load_subject(subject_id: int):
     # e.g. full['location'] = full['signal'].cumsum() 
     
     return full
+
+
+def load_all_subjects(variable: str, target_length=300):
+    """
+    Load a given variable across multiple subjects, interpolate each subject's data
+    to the same length using cubic spline (fallback to linear if too few points).
+
+    Args:
+        variable (str): The variable name, e.g. 'CO2', 'PM25', etc.
+        target_length (int): Desired common length for all subjects after interpolation.
+
+    Returns:
+        pd.DataFrame: A DataFrame of shape (target_length, len(subjects_with_data)),
+                      with columns named by subject_id.
+    """
+    interpolated_data = {}
     
+    for sid in range(1,21):
+        try:
+            # Attempt to read the raw variable data (measurement column + 'signal')
+            df_var = read_var(sid, variable)
+        except (FileNotFoundError, KeyError):
+            print(f"  • Skipping subject {sid} for variable '{variable}'.")
+            continue
+        
+        values = df_var[variable].to_numpy()
+        n = len(values)
+        
+        # Choose cubic if enough points, else linear
+        kind = 'cubic' if n >= 4 else 'linear'
+        
+        # Define original and target grids
+        old_idx = np.linspace(0, n - 1, num=n)
+        new_idx = np.linspace(0, n - 1, num=target_length)
+        
+        # Build interpolator and compute resampled values
+        f_interp = interp1d(old_idx, values, kind=kind, bounds_error=False, fill_value="extrapolate")
+        interpolated_data[f"S{sid}{variable}"] = f_interp(new_idx)
+    
+    # Combine into a DataFrame: rows are sample positions, columns are subject IDs
+    result_df = pd.DataFrame(interpolated_data)
+    result_df.index.name = 'sample_index'
+    return result_df
+
+# Example usage:
+# subject_ids = list(range(1, 31))  # subjects 1 to 30
+# df_co2 = load_variable_all_subjects('CO2', subject_ids, target_length=100)
+# print(df_co2.shape)  # (100, number_of_subjects_with_CO2)
