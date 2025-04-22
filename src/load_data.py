@@ -1,10 +1,13 @@
 from scipy.io import loadmat
 import pandas as pd
 import numpy as np
+import os
 
 def read_var(subject_id: int, variable: str):
     """
-    Read a variable from a .mat file.
+    Load the 'S' matrix from a single .mat file and return
+    a DataFrame with columns [variable, 'signal'].
+    Raises FileNotFoundError or KeyError if something’s missing.
 
     Args:
         subject_id (int): The subject ID.
@@ -13,13 +16,18 @@ def read_var(subject_id: int, variable: str):
     Returns:
         pd.DataFrame: The loaded variable as a pandas DataFrame.
     """
-    # Construct the filename based on the subject ID
     filename = f"../data/S{subject_id:02d}/S{subject_id}{variable}.mat"
-    # Load the .mat file
-    data = loadmat(filename)
-    # Extract the variable from the loaded data
-    data_df = pd.DataFrame(data["S"], columns=[f"S{subject_id}{variable}", "signal"])
-    return data_df
+    if not os.path.exists(filename):
+        raise FileNotFoundError(f"{filename} not found.")
+    
+    mat = loadmat(filename)
+    if "S" not in mat:
+        raise KeyError(f"'S' key not found in {filename}. Got keys: {list(mat.keys())}")
+    
+    arr = mat["S"]
+    # first column is the measurement, second is 'signal'
+    df = pd.DataFrame(arr, columns=[variable, "signal"])
+    return df
 
 def load_var(subject_id: int, variable: str):
     """
@@ -46,7 +54,8 @@ def load_var(subject_id: int, variable: str):
 
 def load_subject(subject_id: int):
     """
-    Load all variables for a given subject.
+    Load all variables for a subject, skip any missing or malformed files,
+    and return one wide DataFrame indexed by the row number.
 
     Args:
         subject_id (int): The subject ID.
@@ -54,15 +63,30 @@ def load_subject(subject_id: int):
     Returns:
         pd.DataFrame: A DataFrame containing all variables for the subject.
     """
-    # Load the variables for the subject
     variables = ["CO2", "P", "PM1", "PM10", "PM25", "RH", "T", "VOC"]
-    data = {}
-    for variable in variables:
-        print(f"Loading {variable} for subject {subject_id}")
-        data[variable] = read_var(subject_id, variable)[f"S{subject_id}{variable}"]
+    dfs = []
     
-    # Concatenate all variables into a single DataFrame
-    data_df = pd.concat(data.values(), axis=1).drop_duplicates()
+    for var in variables:
+        print(f"Loading {var} for subject {subject_id}")
+        try:
+            df_var = read_var(subject_id, var)
+            dfs.append(df_var)
+        except FileNotFoundError as e:
+            print(f"  • SKIP (file not found): {e}")
+        except KeyError as e:
+            print(f"  • SKIP (bad format): {e}")
     
-    return data_df
+    if not dfs:
+        # nothing loaded
+        return pd.DataFrame()
+    
+    # Concatenate side‑by‑side; drop duplicate 'signal' columns
+    full = pd.concat(dfs, axis=1)
+    # If 'signal' appears more than once, keep the first
+    full = full.loc[:, ~full.columns.duplicated()]
+    
+    # Now you can add your location/regime logic here if you want
+    # e.g. full['location'] = full['signal'].cumsum() 
+    
+    return full
     
