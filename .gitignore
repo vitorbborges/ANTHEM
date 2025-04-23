@@ -174,7 +174,12 @@ cython_debug/
 .pypirc
 
 # FILES
+# Ignore everything in /data
 data/
+
+# But allow entry into these subfolders
+!data/raw_data/
 !data/raw_data/points_of_interest.kmz
 !data/raw_data/route.kmz
+
 src/cache/
