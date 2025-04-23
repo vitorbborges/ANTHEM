@@ -175,5 +175,6 @@ cython_debug/
 
 # FILES
 data/
-!data/points_of_interest.kmz
-!data/route.kmz
+!data/raw_data/points_of_interest.kmz
+!data/raw_data/route.kmz
+src/cache/
