@@ -187,4 +187,6 @@ data/raw_data/*
 !data/raw_data/points_of_interest.kmz
 !data/raw_data/route.kmz
 
-src/cache/
+cache/
+
+.vscode/
