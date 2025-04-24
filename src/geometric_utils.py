@@ -86,7 +86,40 @@ def get_nearest_nodes(
     return nodes.loc[within_mask.values]
 
 
-def is_close_to_park(parks: gpd.GeoDataFrame, point: Point, threshold=25) -> bool:
+def get_nearest_edges(
+    edges: gpd.GeoDataFrame,
+    point: Point,
+    radius_meters: float = 25
+) -> gpd.GeoDataFrame:
+    """
+    Returns all edges whose LineString geometries lie within a given radius (in meters)
+    of the specified point.
+
+    Parameters:
+        edges (GeoDataFrame): GeoDataFrame of LineString geometries in EPSG:4326
+        point (Point): The Shapely Point to search around, in EPSG:4326
+        radius_meters (float): Search radius in meters (default: 25)
+    
+    Returns:
+        GeoDataFrame: Subset of `edges` within `radius_meters` of `point`
+    """
+    # 1. Reproject to a metric CRS (Web Mercator)
+    target_crs = "EPSG:3857"
+    edges_proj = edges.to_crs(target_crs)
+
+    # 2. Project the single point
+    point_gs = gpd.GeoSeries([point], crs="EPSG:4326").to_crs(target_crs)
+    point_proj = point_gs.iloc[0]
+    
+    # 3. Compute distances and filter
+    dists = edges_proj.geometry.distance(point_proj)
+    within_mask = dists <= radius_meters
+
+    # 4. Return the original rows (in original CRS) that satisfy the mask
+    return edges.loc[within_mask.values]
+
+
+def is_close_to_park(parks: gpd.GeoDataFrame, point: Point, threshold: float = 25) -> bool:
     """
     Checks if a given point is within a certain distance (in meters) from any park.
 
