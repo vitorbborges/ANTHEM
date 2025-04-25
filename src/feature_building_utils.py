@@ -1,111 +1,154 @@
-from shapely.geometry import Point, LineString
 import geopandas as gpd
+from shapely.geometry import Point
+from typing import Optional, Union, List
 
 
-def count_nearest_parks(
-    parks: gpd.GeoDataFrame, point: Point, threshold: float = 25
+def is_inside(
+    features: gpd.GeoDataFrame,
+    point: Point,
+    type_column: Optional[str] = None,
+    types: Optional[Union[str, List[str]]] = None,
 ) -> bool:
     """
-    Determine whether a given point lies within a specified distance of any park.
+    Return True if `point` lies within any geometry in `features`.
+
+    Optionally filters `features` by a column and value(s) before testing.
 
     Parameters:
-        parks (GeoDataFrame): A GeoDataFrame of park polygons or points, in EPSG:4326.
-        point (shapely.geometry.Point): The location to test, in EPSG:4326.
-        threshold (float): Distance threshold in meters. Defaults to 25m.
+        features (GeoDataFrame): geometries in EPSG:4326
+        point (Point): location in EPSG:4326
+        type_column (str, optional): column name to filter on
+        types (str or list, optional): value(s) in `type_column` to include
 
     Returns:
-        bool:
-            True if the point is at most `threshold` meters away from at least one park;
-            False otherwise.
+        bool: True if containment in at least one feature
     """
-    # Project to a metric CRS for accurate distance calculations
-    target_crs = "EPSG:3857"
-    parks_proj = parks.to_crs(target_crs)
+    # filter by type if requested
+    if type_column and types is not None:
+        vals = [types] if isinstance(types, str) else list(types)
+        features = features[features[type_column].isin(vals)]
+        if features.empty:
+            return False
 
-    # Project the point
-    point_proj = gpd.GeoSeries([point], crs="EPSG:4326").to_crs(target_crs).iloc[0]
+    # project for accurate geometry operations
+    features_proj = features.to_crs("EPSG:3857")
+    point_proj = gpd.GeoSeries([point], crs="EPSG:4326").to_crs("EPSG:3857").iloc[0]
 
-    # Check if any park is within the threshold distance
-    distances = parks_proj.geometry.distance(point_proj)
+    return features_proj.geometry.contains(point_proj).any()
+
+
+def is_close_to(
+    features: gpd.GeoDataFrame,
+    point: Point,
+    threshold: float,
+    type_column: Optional[str] = None,
+    types: Optional[Union[str, List[str]]] = None,
+) -> bool:
+    """
+    Return True if `point` is within `threshold` meters of any geometry in `features`.
+
+    Optionally filters `features` by a column and value(s) before testing.
+
+    Parameters:
+        features (GeoDataFrame): geometries in EPSG:4326
+        point (Point): location in EPSG:4326
+        threshold (float): distance in meters
+        type_column (str, optional): column name to filter on
+        types (str or list, optional): value(s) in `type_column` to include
+
+    Returns:
+        bool: True if at least one feature is within `threshold` meters
+    """
+    # filter by type if requested
+    if type_column and types is not None:
+        vals = [types] if isinstance(types, str) else list(types)
+        features = features[features[type_column].isin(vals)]
+        if features.empty:
+            return False
+
+    features_proj = features.to_crs("EPSG:3857")
+    point_proj = gpd.GeoSeries([point], crs="EPSG:4326").to_crs("EPSG:3857").iloc[0]
+
+    distances = features_proj.geometry.distance(point_proj)
     return (distances <= threshold).any()
 
 
-def is_close_to_park(
-    parks: gpd.GeoDataFrame, point: Point, threshold: float = 25
-) -> bool:
+def count_nearby(
+    features: gpd.GeoDataFrame,
+    point: Point,
+    threshold: float,
+    type_column: Optional[str] = None,
+    types: Optional[Union[str, List[str]]] = None,
+) -> int:
     """
-    Returns True if `point` lies within `threshold` meters of any feature
-    in `parks` classified as a 'park'.
+    Count how many geometries in `features` lie within `threshold` meters of `point`.
 
-    Assumes `parks` has a column (e.g. 'type') with the value 'park'
-    for park geometries. Adjust `feature_column` and `park_value` if yours differs.
+    Optionally filters `features` by a column and value(s) before counting.
 
     Parameters:
-        parks (GeoDataFrame): in EPSG:4326, with a column 'type' == 'park'
-        point (Point): in EPSG:4326
+        features (GeoDataFrame): geometries in EPSG:4326
+        point (Point): location in EPSG:4326
         threshold (float): distance in meters
+        type_column (str, optional): column name to filter on
+        types (str or list, optional): value(s) in `type_column` to include
 
     Returns:
-        bool
+        int: number of features within `threshold` meters
     """
-    # filter only park geometries
-    parks_only = parks[parks["type"] == "park"]
-    if parks_only.empty:
-        return False
+    # filter by type if requested
+    if type_column and types is not None:
+        vals = [types] if isinstance(types, str) else list(types)
+        features = features[features[type_column].isin(vals)]
+        if features.empty:
+            return 0
 
-    # project to metric CRS
-    parks_proj = parks_only.to_crs("EPSG:3857")
+    features_proj = features.to_crs("EPSG:3857")
     point_proj = gpd.GeoSeries([point], crs="EPSG:4326").to_crs("EPSG:3857").iloc[0]
 
-    # check distances
-    return (parks_proj.geometry.distance(point_proj) <= threshold).any()
+    distances = features_proj.geometry.distance(point_proj)
+    return int((distances <= threshold).sum())
 
 
-def is_close_to_garden(
-    parks: gpd.GeoDataFrame, point: Point, threshold: float = 25
-) -> bool:
+def land_cover_proportion(
+    features: gpd.GeoDataFrame,
+    point: Point,
+    threshold: float = 100.0,
+    type_column: Optional[str] = None,
+    types: Optional[Union[str, List[str]]] = None,
+) -> float:
     """
-    Returns True if `point` lies within `threshold` meters of any feature
-    in `parks` classified as a 'garden'.
-
-    Assumes `parks` has a column (e.g. 'type') with the value 'garden'
-    for garden geometries. Adjust `feature_column` and `garden_value` if yours differs.
+    Calculate the proportion of area within `threshold` meters of `point`
+    that is covered by the geometries in `features`, optionally filtering
+    by feature type.
 
     Parameters:
-        parks (GeoDataFrame): in EPSG:4326, with a column 'type' == 'garden'
-        point (Point): in EPSG:4326
-        threshold (float): distance in meters
+        features (GeoDataFrame): geometries in EPSG:4326.
+        point (Point): center point in EPSG:4326.
+        threshold (float): buffer radius in meters (default: 100.0).
+        type_column (str, optional): column name to filter on.
+        types (str or list, optional): value(s) in `type_column` to include.
 
     Returns:
-        bool
+        float: fraction (0.0–1.0) of the buffer’s area occupied by the features.
     """
-    # filter only garden geometries
-    gardens_only = parks[parks["type"] == "garden"]
-    if gardens_only.empty:
-        return False
+    # Filter by type if requested
+    if type_column and types is not None:
+        vals = [types] if isinstance(types, str) else list(types)
+        features = features[features[type_column].isin(vals)]
+        if features.empty:
+            return 0.0
 
-    # project to metric CRS
-    gardens_proj = gardens_only.to_crs("EPSG:3857")
+    # Project to metric CRS for accurate buffering & area calcs
+    features_proj = features.to_crs("EPSG:3857")
     point_proj = gpd.GeoSeries([point], crs="EPSG:4326").to_crs("EPSG:3857").iloc[0]
 
-    # check distances
-    return (gardens_proj.geometry.distance(point_proj) <= threshold).any()
+    # Build the buffer
+    buffer_geom = point_proj.buffer(threshold)
 
+    # Compute intersection area
+    intersection_area = features_proj.geometry.intersection(buffer_geom).area.sum()
 
-def is_indoor(buildings: gpd.GeoDataFrame, point: Point) -> bool:
-    """
-    Checks if a given point is inside any building polygon.
+    # Compute buffer area
+    buffer_area = buffer_geom.area
 
-    Parameters:
-        buildings (GeoDataFrame): GeoDataFrame of building geometries in EPSG:4326
-        point (Point): The shapely Point to check, in EPSG:4326
-
-    Returns:
-        bool: True if the point is inside any building, False otherwise
-    """
-    # Ensure buildings are in lat/lon
-    if buildings.crs != "EPSG:4326":
-        buildings = buildings.to_crs(epsg=4326)
-
-    # Vectorized containment check
-    return buildings.geometry.contains(point).any()
+    return intersection_area / buffer_area
