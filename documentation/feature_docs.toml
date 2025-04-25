@@ -1,3 +1,107 @@
+[CO2]
+description = "Carbon dioxide (CO₂) concentration"
+type = "float"
+range = "Depends on the subject"
+created_on = "geolocate.ipynb"
+source = "ANTHEM project"
+source_url = "undisclosed"
+
+[P]
+description = "Atmospheric pressure data"
+type = "float"
+range = "Depends on the subject"
+created_on = "geolocate.ipynb"
+source = "ANTHEM project"
+source_url = "undisclosed"
+
+[PM1]
+description = "Particulate matter (PM) concentration for particles ≤1µm"
+type = "float"
+range = "Depends on the subject"
+created_on = "geolocate.ipynb"
+source = "ANTHEM project"
+source_url = "undisclosed"
+
+[PM10]
+description = "Particulate matter (PM) concentration for particles ≤10µm"
+type = "float"
+range = "Depends on the subject"
+created_on = "geolocate.ipynb"
+source = "ANTHEM project"
+source_url = "undisclosed"
+
+[PM25]
+description = "Particulate matter (PM) concentration for particles ≤2.5µm"
+type = "float"
+range = "Depends on the subject"
+created_on = "geolocate.ipynb"
+source = "ANTHEM project"
+source_url = "undisclosed"
+
+[RH]
+description = "Relative humidity data"
+type = "float"
+range = "Depends on the subject"
+created_on = "geolocate.ipynb"
+source = "ANTHEM project"
+source_url = "undisclosed"
+
+[T]
+description = "Temperature data"
+type = "float"
+range = "Depends on the subject"
+created_on = "geolocate.ipynb"
+source = "ANTHEM project"
+source_url = "undisclosed"
+
+[VOC]
+description = "Volatile organic compounds (VOCs) concentration"
+type = "float"
+range = "Depends on the subject"
+created_on = "geolocate.ipynb"
+source = "ANTHEM project"
+source_url = "undisclosed"
+
+[signal]
+description = "Signal marker of change in location"
+type = "int"
+range = [ 0, 10000,]
+created_on = "geolocate.ipynb"
+source = "ANTHEM project"
+source_url = "undisclosed"
+
+[location]
+description = "Location of the sample point"
+type = "str"
+range = [ "A", "AB", "B", "BC", "C", "CD", "D", "DE", "E", "EF", "F", "FG", "G", "GH",]
+created_on = "geolocate.ipynb"
+source = "ANTHEM project"
+source_url = "undisclosed"
+
+[regime]
+description = "Regime of the sample point (static/dynamic) indicating if the subject is stationary or moving"
+type = "str"
+range = [ "static", "dynamic",]
+created_on = "geolocate.ipynb"
+source = "ANTHEM project"
+source_url = "undisclosed"
+
+[x]
+description = "X coordinate of the sample point"
+type = "float"
+range = [ 9.226580468713795, 9.23668,]
+created_on = "geolocate.ipynb"
+source = "ANTHEM project"
+source_url = "undisclosed"
+
+[y]
+description = "Y coordinate of the sample point"
+type = "float"
+range = [ 45.48497996269657, 45.4722252,]
+created_on = "geolocate.ipynb"
+source = "ANTHEM project"
+source_url = "undisclosed"
+
 [inside_green]
 description = "'Dummy' variable indicating wheter the point is inside a green area or not"
 type = "boolean"
@@ -49,7 +153,7 @@ source_url = "https://www.openstreetmap.org/"
 [proportion_green_50]
 description = "Proportion of green land area within a 50m radius circle around the point"
 type = "float"
-range = [ 0.0, 0.3734281285358024,]
+range = [ 0.0, 0.373467498273193,]
 created_on = "osmnx_parks.ipynb"
 source = "OSM"
 source_url = "https://www.openstreetmap.org/"
@@ -57,7 +161,7 @@ source_url = "https://www.openstreetmap.org/"
 [proportion_green_100]
 description = "Proportion of green land area within a 100m radius circle around the point"
 type = "float"
-range = [ 0.0, 0.400308699729122,]
+range = [ 0.0, 0.4003214374464804,]
 created_on = "osmnx_parks.ipynb"
 source = "OSM"
 source_url = "https://www.openstreetmap.org/"
@@ -65,7 +169,7 @@ source_url = "https://www.openstreetmap.org/"
 [proportion_green_500]
 description = "Proportion of green land area within a 500m radius circle around the point"
 type = "float"
-range = [ 0.1288235421288318, 0.007052764819529004,]
+range = [ 0.12882339259190778, 0.007049415111455461,]
 created_on = "osmnx_parks.ipynb"
 source = "OSM"
 source_url = "https://www.openstreetmap.org/"

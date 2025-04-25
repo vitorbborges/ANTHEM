@@ -1,0 +1,232 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Dataset Dictionary</title>
+  <style>
+    .metadata-container { max-width: 90%; margin: 20px auto; padding: 10px; }
+    .metadata-table { width: 100%; border-collapse: collapse; }
+    .metadata-table th, .metadata-table td { padding: 8px; text-align: left; }
+    .metadata-table th { background-color: #f0f0f0; }
+  </style>
+</head>
+<body>
+  <div class="metadata-container">
+    <h1>📖 Dataset Dictionary</h1>
+    <table border="1" class="dataframe metadata-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>column</th>
+      <th>description</th>
+      <th>type</th>
+      <th>range</th>
+      <th>created_on</th>
+      <th>source</th>
+      <th>source_url</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>CO2</td>
+      <td>Carbon dioxide (CO₂) concentration</td>
+      <td>float</td>
+      <td>Depends on the subject</td>
+      <td>geolocate.ipynb</td>
+      <td>ANTHEM project</td>
+      <td>undisclosed</td>
+    </tr>
+    <tr>
+      <td>P</td>
+      <td>Atmospheric pressure data</td>
+      <td>float</td>
+      <td>Depends on the subject</td>
+      <td>geolocate.ipynb</td>
+      <td>ANTHEM project</td>
+      <td>undisclosed</td>
+    </tr>
+    <tr>
+      <td>PM1</td>
+      <td>Particulate matter (PM) concentration for particles ≤1µm</td>
+      <td>float</td>
+      <td>Depends on the subject</td>
+      <td>geolocate.ipynb</td>
+      <td>ANTHEM project</td>
+      <td>undisclosed</td>
+    </tr>
+    <tr>
+      <td>PM10</td>
+      <td>Particulate matter (PM) concentration for particles ≤10µm</td>
+      <td>float</td>
+      <td>Depends on the subject</td>
+      <td>geolocate.ipynb</td>
+      <td>ANTHEM project</td>
+      <td>undisclosed</td>
+    </tr>
+    <tr>
+      <td>PM25</td>
+      <td>Particulate matter (PM) concentration for particles ≤2.5µm</td>
+      <td>float</td>
+      <td>Depends on the subject</td>
+      <td>geolocate.ipynb</td>
+      <td>ANTHEM project</td>
+      <td>undisclosed</td>
+    </tr>
+    <tr>
+      <td>RH</td>
+      <td>Relative humidity data</td>
+      <td>float</td>
+      <td>Depends on the subject</td>
+      <td>geolocate.ipynb</td>
+      <td>ANTHEM project</td>
+      <td>undisclosed</td>
+    </tr>
+    <tr>
+      <td>T</td>
+      <td>Temperature data</td>
+      <td>float</td>
+      <td>Depends on the subject</td>
+      <td>geolocate.ipynb</td>
+      <td>ANTHEM project</td>
+      <td>undisclosed</td>
+    </tr>
+    <tr>
+      <td>VOC</td>
+      <td>Volatile organic compounds (VOCs) concentration</td>
+      <td>float</td>
+      <td>Depends on the subject</td>
+      <td>geolocate.ipynb</td>
+      <td>ANTHEM project</td>
+      <td>undisclosed</td>
+    </tr>
+    <tr>
+      <td>signal</td>
+      <td>Signal marker of change in location</td>
+      <td>int</td>
+      <td>[0, 10000]</td>
+      <td>geolocate.ipynb</td>
+      <td>ANTHEM project</td>
+      <td>undisclosed</td>
+    </tr>
+    <tr>
+      <td>location</td>
+      <td>Location of the sample point</td>
+      <td>str</td>
+      <td>[A, AB, B, BC, C, CD, D, DE, E, EF, F, FG, G, GH]</td>
+      <td>geolocate.ipynb</td>
+      <td>ANTHEM project</td>
+      <td>undisclosed</td>
+    </tr>
+    <tr>
+      <td>regime</td>
+      <td>Regime of the sample point (static/dynamic) indicating if the subject is stationary or moving</td>
+      <td>str</td>
+      <td>[static, dynamic]</td>
+      <td>geolocate.ipynb</td>
+      <td>ANTHEM project</td>
+      <td>undisclosed</td>
+    </tr>
+    <tr>
+      <td>x</td>
+      <td>X coordinate of the sample point</td>
+      <td>float</td>
+      <td>[9.226580468713795, 9.23668]</td>
+      <td>geolocate.ipynb</td>
+      <td>ANTHEM project</td>
+      <td>undisclosed</td>
+    </tr>
+    <tr>
+      <td>y</td>
+      <td>Y coordinate of the sample point</td>
+      <td>float</td>
+      <td>[45.48497996269657, 45.4722252]</td>
+      <td>geolocate.ipynb</td>
+      <td>ANTHEM project</td>
+      <td>undisclosed</td>
+    </tr>
+    <tr>
+      <td>inside_green</td>
+      <td>'Dummy' variable indicating wheter the point is inside a green area or not</td>
+      <td>boolean</td>
+      <td>[0, 1]</td>
+      <td>osmnx_parks.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
+    </tr>
+    <tr>
+      <td>close2park_25</td>
+      <td>'Dummy' variable indicating wheter the point is less than 25m away from a park or not</td>
+      <td>boolean</td>
+      <td>[0, 1]</td>
+      <td>osmnx_parks.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
+    </tr>
+    <tr>
+      <td>close2garden_25</td>
+      <td>'Dummy' variable indicating wheter the point is less than 25m away from a garden or not</td>
+      <td>boolean</td>
+      <td>[0, 1]</td>
+      <td>osmnx_parks.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
+    </tr>
+    <tr>
+      <td>num_green_200</td>
+      <td>Number of green areas within 200m from the point</td>
+      <td>integer</td>
+      <td>[0, 8]</td>
+      <td>osmnx_parks.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
+    </tr>
+    <tr>
+      <td>num_green_500</td>
+      <td>Number of green areas within 500m from the point</td>
+      <td>integer</td>
+      <td>[4, 14]</td>
+      <td>osmnx_parks.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
+    </tr>
+    <tr>
+      <td>num_green_1000</td>
+      <td>Number of green areas within 1000m from the point</td>
+      <td>integer</td>
+      <td>[32, 10]</td>
+      <td>osmnx_parks.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
+    </tr>
+    <tr>
+      <td>proportion_green_50</td>
+      <td>Proportion of green land area within a 50m radius circle around the point</td>
+      <td>float</td>
+      <td>[0.0, 0.373467498273193]</td>
+      <td>osmnx_parks.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
+    </tr>
+    <tr>
+      <td>proportion_green_100</td>
+      <td>Proportion of green land area within a 100m radius circle around the point</td>
+      <td>float</td>
+      <td>[0.0, 0.4003214374464804]</td>
+      <td>osmnx_parks.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
+    </tr>
+    <tr>
+      <td>proportion_green_500</td>
+      <td>Proportion of green land area within a 500m radius circle around the point</td>
+      <td>float</td>
+      <td>[0.12882339259190778, 0.007049415111455461]</td>
+      <td>osmnx_parks.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
+    </tr>
+  </tbody>
+</table>
+  </div>
+</body>
+</html>
