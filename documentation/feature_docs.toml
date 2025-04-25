@@ -1,0 +1,71 @@
+[inside_green]
+description = "'Dummy' variable indicating wheter the point is inside a green area or not"
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_parks.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2park_25]
+description = "'Dummy' variable indicating wheter the point is less than 25m away from a park or not"
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_parks.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2garden_25]
+description = "'Dummy' variable indicating wheter the point is less than 25m away from a garden or not"
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_parks.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[num_green_200]
+description = "Number of green areas within 200m from the point"
+type = "integer"
+range = [ 0, 8,]
+created_on = "osmnx_parks.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[num_green_500]
+description = "Number of green areas within 500m from the point"
+type = "integer"
+range = [ 4, 14,]
+created_on = "osmnx_parks.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[num_green_1000]
+description = "Number of green areas within 1000m from the point"
+type = "integer"
+range = [ 32, 10,]
+created_on = "osmnx_parks.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[proportion_green_50]
+description = "Proportion of green land area within a 50m radius circle around the point"
+type = "float"
+range = [ 0.0,]
+created_on = "osmnx_parks.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[proportion_green_100]
+description = "Proportion of green land area within a 100m radius circle around the point"
+type = "float"
+range = [ 0.0,]
+created_on = "osmnx_parks.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[proportion_green_500]
+description = "Proportion of green land area within a 500m radius circle around the point"
+type = "float"
+range = [ 0.0,]
+created_on = "osmnx_parks.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
