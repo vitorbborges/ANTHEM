@@ -25,7 +25,7 @@ notebooks = [
 
 
 @pytest.mark.parametrize("notebook_path", notebooks)
-def test_notebook_execution(notebook_path):
+def test_notebook_execution(notebook_path: Path):
     """Ensure each notebook runs without errors."""
     with open(notebook_path, "r", encoding="utf-8") as f:
         nb = nbformat.read(f, as_version=4)
