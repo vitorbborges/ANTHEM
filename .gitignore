@@ -177,3 +177,5 @@ cython_debug/
 data/
 !data/points_of_interest.kmz
 !data/route.kmz
+
+.vscode/
