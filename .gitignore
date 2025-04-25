@@ -174,7 +174,19 @@ cython_debug/
 .pypirc
 
 # FILES
-data/
-!data/points_of_interest.kmz
-!data/route.kmz
+# Ignore everything under data/
+data/*
+
+# Re-allow the specific subdirectory so Git will check inside it
+!data/raw_data/
+
+# Ignore everything else inside raw_data/ (important!)
+data/raw_data/*
+
+# Allow again only the two whitelisted files (re-asserting them)
+!data/raw_data/points_of_interest.kmz
+!data/raw_data/route.kmz
+
+cache/
+
 .vscode/
