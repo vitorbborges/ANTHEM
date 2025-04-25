@@ -81,7 +81,7 @@ def load_var(subject_id: int, variable: str):
 def load_subject(subject_id: int):
     """
     Load all variables for a subject, skip any missing or malformed files,
-    and return one wide DataFrame indexed by the row number.
+    and return one wide DataFrame joined by index.
 
     Args:
         subject_id (int): The subject ID.
@@ -89,30 +89,39 @@ def load_subject(subject_id: int):
     Returns:
         pd.DataFrame: A DataFrame containing all variables for the subject.
     """
-    variables = ["CO2", "P", "PM1", "PM10", "PM25", "RH", "T", "VOC"]
-    dfs = []
+    import pandas as pd
 
+    variables = ["CO2", "P", "PM1", "PM10", "PM25", "RH", "T", "VOC"]
+    full = None
+
+    read = []
     for var in variables:
         print(f"Loading {var} for subject {subject_id}")
         try:
             df_var = read_var(subject_id, var)
-            dfs.append(df_var)
+
+            if full is None:
+                full = df_var
+            else:
+                full = full.merge(
+                    df_var,
+                    left_index=True,
+                    right_index=True,
+                    how="outer",
+                    suffixes=("", f"_{var}"),
+                )
+            read.append(var)
+
         except FileNotFoundError as e:
             print(f"  • SKIP (file not found): {e}")
         except KeyError as e:
             print(f"  • SKIP (bad format): {e}")
 
-    if not dfs:
-        # nothing loaded
+    if full is None:
         return pd.DataFrame()
 
-    # Concatenate side‑by‑side; drop duplicate 'signal' columns
-    full = pd.concat(dfs, axis=1)
-    # If 'signal' appears more than once, keep the first
-    full = full.loc[:, ~full.columns.duplicated()]
-
-    # Now you can add your location/regime logic here if you want
-    # e.g. full['location'] = full['signal'].cumsum()
+    read.append("signal")
+    full = full[read]
 
     return full
 
