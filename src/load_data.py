@@ -1,4 +1,3 @@
-from scipy.io import loadmat
 from scipy.interpolate import interp1d
 import pandas as pd
 import numpy as np
@@ -8,7 +7,7 @@ import os
 def read_var(subject_id: int, variable: str):
     """
     Load the 'S' matrix from a single .mat file and return
-    a DataFrame with columns [variable, 'signal'].
+    a DataFrame with columns [variable'time', 'signal'].
     Raises FileNotFoundError or KeyError if something’s missing.
 
     Args:
@@ -18,18 +17,21 @@ def read_var(subject_id: int, variable: str):
     Returns:
         pd.DataFrame: The loaded variable as a pandas DataFrame.
     """
-    filename = f"data/raw_data/S{subject_id:02d}/S{subject_id}{variable}.mat"
+    filename = f"data/adapted_raw_data/S{subject_id:02d}/S{subject_id}_{variable}_TableResampled.parquet"
     if not os.path.exists(filename):
         raise FileNotFoundError(f"{filename} not found.")
 
-    mat = loadmat(filename)
+    mat = pd.read_parquet(filename)
     if "S" not in mat:
         raise KeyError(f"'S' key not found in {filename}. Got keys: {list(mat.keys())}")
 
-    arr = mat["S"]
-    # first column is the measurement, second is 'signal'
-    df = pd.DataFrame(arr, columns=[variable, "signal"])
-    return df
+    # rename columns to match the expected format
+    mat.columns = [variable, "time", "signal"]
+    # Suppose your DataFrame is called df
+    mat["time"] = pd.to_datetime(mat["time"]).dt.time  # Extract only the time
+    mat = mat.set_index("time")  # Set it as index
+
+    return mat
 
 
 def load_var(subject_id: int, variable: str):
