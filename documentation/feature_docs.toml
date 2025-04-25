@@ -49,7 +49,7 @@ source_url = "https://www.openstreetmap.org/"
 [proportion_green_50]
 description = "Proportion of green land area within a 50m radius circle around the point"
 type = "float"
-range = [ 0.0,]
+range = [ 0.0, 0.3734281285358024,]
 created_on = "osmnx_parks.ipynb"
 source = "OSM"
 source_url = "https://www.openstreetmap.org/"
@@ -57,7 +57,7 @@ source_url = "https://www.openstreetmap.org/"
 [proportion_green_100]
 description = "Proportion of green land area within a 100m radius circle around the point"
 type = "float"
-range = [ 0.0,]
+range = [ 0.0, 0.400308699729122,]
 created_on = "osmnx_parks.ipynb"
 source = "OSM"
 source_url = "https://www.openstreetmap.org/"
@@ -65,7 +65,7 @@ source_url = "https://www.openstreetmap.org/"
 [proportion_green_500]
 description = "Proportion of green land area within a 500m radius circle around the point"
 type = "float"
-range = [ 0.0,]
+range = [ 0.1288235421288318, 0.007052764819529004,]
 created_on = "osmnx_parks.ipynb"
 source = "OSM"
 source_url = "https://www.openstreetmap.org/"
