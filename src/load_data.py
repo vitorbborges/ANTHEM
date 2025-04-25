@@ -34,7 +34,7 @@ def read_var(subject_id: int, variable: str):
     return mat
 
 
-def load_var(subject_id: int, variable: str):
+def load_var(data_df: pd.DataFrame):
     """
     Load a variable from a .mat file and convert the signal column to a categorical indicator of location.
 
@@ -45,8 +45,6 @@ def load_var(subject_id: int, variable: str):
     Returns:
         pd.DataFrame: The loaded variable as a pandas DataFrame.
     """
-    # Read the variable from the .mat file
-    data_df = read_var(subject_id, variable)
 
     # Convert the signal column to a categorical indicator of location
     data_df["location"] = data_df["signal"].cumsum()
@@ -122,8 +120,9 @@ def load_subject(subject_id: int):
 
     read.append("signal")
     full = full[read]
+    full.dropna(inplace=True)
 
-    return full
+    return load_var(full)
 
 
 def load_all_subjects(variable: str, target_length=300):

@@ -2,6 +2,11 @@ import geopandas as gpd
 from shapely.geometry import Point
 from typing import Optional, Union, List
 
+# GLOBAL VARIABLES
+WEST, SOUTH, EAST, NORTH = 9.2257, 45.47162, 9.23768, 45.48537
+BBOX = (WEST, SOUTH, EAST, NORTH)  # Bounding box for the area of interest
+TOML_PATH = "documentation/feature_docs.toml"
+
 
 def is_inside(
     features: gpd.GeoDataFrame,
