@@ -81,7 +81,7 @@ source_url = "undisclosed"
 [regime]
 description = "Regime of the sample point (static/dynamic) indicating if the subject is stationary or moving"
 type = "str"
-range = [ "static", "dynamic",]
+range = [ "dynamic", "static",]
 created_on = "geolocate.ipynb"
 source = "ANTHEM project"
 source_url = "undisclosed"
@@ -171,5 +171,77 @@ description = "Proportion of green land area within a 500m radius circle around 
 type = "float"
 range = [ 0.12882339259190778, 0.007049415111455461,]
 created_on = "osmnx_parks.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2water_25]
+description = "'Dummy' variable indicating wheter the point is less than 25m away from a water body"
+type = "integer"
+range = [ 0, 1,]
+created_on = "osmnx_water.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2water_100]
+description = "'Dummy' variable indicating wheter the point is less than 100m away from a water body"
+type = "integer"
+range = [ 0, 1,]
+created_on = "osmnx_water.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2industry_400]
+description = "'Dummy' variable indicating wheter the point is less than 400m away from an industrial area"
+type = "integer"
+range = [ 0, 1,]
+created_on = "osmnx_landuse.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2residential_10]
+description = "'Dummy' variable indicating wheter the point is less than 10m away from a residential area"
+type = "integer"
+range = [ 0,]
+created_on = "osmnx_landuse.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[proportion_residential_400]
+description = "Proportion of residential land area within a 400m radius circle around the point"
+type = "float"
+range = [ "np.float64(0.0)", "np.float64(0.8641728225051793)",]
+created_on = "osmnx_landuse.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2railway_100]
+description = "'Dummy' variable indicating wheter the point is less than 100m away from a railway"
+type = "integer"
+range = [ 0, 1,]
+created_on = "osmnx_landuse.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2grass_15]
+description = "'Dummy' variable indicating wheter the point is less than 15m away from a grass area"
+type = "integer"
+range = [ 0, 1,]
+created_on = "osmnx_landuse.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2grass_100]
+description = "'Dummy' variable indicating wheter the point is less than 100m away from a grass area"
+type = "integer"
+range = [ 0, 1,]
+created_on = "osmnx_landuse.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2construction_50]
+description = "'Dummy' variable indicating wheter the point is less than 50m away from a construction area"
+type = "integer"
+range = [ 0, 1,]
+created_on = "osmnx_landuse.ipynb"
 source = "OSM"
 source_url = "https://www.openstreetmap.org/"
