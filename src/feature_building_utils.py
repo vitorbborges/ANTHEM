@@ -1,6 +1,10 @@
 import geopandas as gpd
 from shapely.geometry import Point
 from typing import Optional, Union, List
+from fancyimpute import SoftImpute
+import pandas as pd
+import numpy as np
+
 
 # GLOBAL VARIABLES
 WEST, SOUTH, EAST, NORTH = 9.2257, 45.47162, 9.23768, 45.48537
@@ -157,3 +161,76 @@ def land_cover_proportion(
     buffer_area = buffer_geom.area
 
     return intersection_area / buffer_area
+
+
+def impute_gdf(
+    gdf: gpd.GeoDataFrame, exclude: list[str], max_rank: int = 20, max_iters: int = 100
+) -> gpd.GeoDataFrame:
+    """
+    Impute missing values in a GeoDataFrame using a low-rank SVD approach.
+
+    Parameters
+    ----------
+    gdf : GeoDataFrame
+        Input GeoDataFrame with some missing values.
+    exclude : list[str]
+        Column names to skip (e.g., IDs, names, geometry).
+    max_rank : int, optional
+        Maximum rank for the SoftImpute SVD approximation (default=20).
+    max_iters : int, optional
+        Maximum number of SoftImpute iterations (default=100).
+
+    Returns
+    -------
+    GeoDataFrame
+        A copy of `gdf` with numerical and categorical columns imputed.
+    """
+    # 1) Select columns to impute
+    use_cols = [c for c in gdf.columns if c not in exclude]
+
+    # 2) Collapse list-valued columns: take the first element
+    X = gdf[use_cols].copy()
+    list_cols = [c for c in use_cols if X[c].apply(lambda v: isinstance(v, list)).any()]
+    for col in list_cols:
+        X[col] = X[col].apply(lambda v: v[0] if isinstance(v, list) and v else np.nan)
+
+    # 3) Coerce “numeric-looking” object columns -> floats
+    for col in X.columns:
+        if X[col].dtype == object:
+            coerced = pd.to_numeric(X[col], errors="coerce")
+            if coerced.notna().sum() > len(coerced) / 2:
+                X[col] = coerced
+
+    # 4) Identify numeric vs. categorical
+    cat_cols = X.select_dtypes(include=["object", "category"]).columns.tolist()
+    num_cols = X.select_dtypes(include=[np.number]).columns.tolist()
+
+    # 5) One-hot encode categoricals
+    dummies = pd.get_dummies(X[cat_cols], dummy_na=False)
+    M = pd.concat([X[num_cols], dummies], axis=1).astype(float)
+
+    # 6) Apply SoftImpute
+    filled = SoftImpute(max_rank=max_rank, max_iters=max_iters).fit_transform(M.values)
+    M_filled = pd.DataFrame(filled, columns=M.columns, index=M.index)
+
+    # 7) Build output GeoDataFrame
+    imputed = gdf.copy()
+
+    # 7a) Numeric columns
+    for col in num_cols:
+        imputed[col] = M_filled[col]
+
+    # 7b) Categorical columns: pick dummy with highest score
+    for col in cat_cols:
+        pref = f"{col}_"
+        dcols = [c for c in M_filled.columns if c.startswith(pref)]
+        if not dcols:
+            continue
+        best = M_filled[dcols].idxmax(axis=1).str[len(pref) :]
+        imputed[col] = best.astype(gdf[col].dtype)
+
+    # 7c) Restore geometry (in case it was dropped)
+    if "geometry" in gdf.columns:
+        imputed.geometry = gdf.geometry
+
+    return imputed
