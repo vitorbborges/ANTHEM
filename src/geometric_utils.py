@@ -53,11 +53,11 @@ def get_nearest_point_on_line(line: LineString, point: Point) -> Point:
     return line.interpolate(line.project(point))
 
 
-def get_nearest_nodes(
-    nodes: gpd.GeoDataFrame, point: Point, radius_meters: float = 25
+def get_nearest_rows(
+    gdf: gpd.GeoDataFrame, point: Point, radius_meters: float = 25
 ) -> gpd.GeoDataFrame:
     """
-    Returns all nodes whose Point geometries lie within a given radius (in meters)
+    Returns all rows whose Point geometries lie within a given radius (in meters)
     of the specified point.
 
     Parameters:
@@ -66,50 +66,19 @@ def get_nearest_nodes(
         radius_meters (float): Search radius in meters (default: 25)
 
     Returns:
-        GeoDataFrame: Subset of `nodes` within `radius_meters` of `point`
+        GeoDataFrame: Subset of `gdf` within `radius_meters` of `point`
     """
     # 1. Reproject to a metric CRS (Web Mercator)
     target_crs = "EPSG:3857"
-    nodes_proj = nodes.to_crs(target_crs)
+    gdf_proj = gdf.to_crs(target_crs)
 
     # 2. Project the single point
     point_gs = gpd.GeoSeries([point], crs="EPSG:4326").to_crs(target_crs)
     point_proj = point_gs.iloc[0]
 
     # 3. Compute distances and filter
-    dists = nodes_proj.geometry.distance(point_proj)
+    dists = gdf_proj.geometry.distance(point_proj)
     within_mask = dists <= radius_meters
 
     # 4. Return the original rows (in original CRS) that satisfy the mask
-    return nodes.loc[within_mask.values]
-
-
-def get_nearest_edges(
-    edges: gpd.GeoDataFrame, point: Point, radius_meters: float = 25
-) -> gpd.GeoDataFrame:
-    """
-    Returns all edges whose LineString geometries lie within a given radius (in meters)
-    of the specified point.
-
-    Parameters:
-        edges (GeoDataFrame): GeoDataFrame of LineString geometries in EPSG:4326
-        point (Point): The Shapely Point to search around, in EPSG:4326
-        radius_meters (float): Search radius in meters (default: 25)
-
-    Returns:
-        GeoDataFrame: Subset of `edges` within `radius_meters` of `point`
-    """
-    # 1. Reproject to a metric CRS (Web Mercator)
-    target_crs = "EPSG:3857"
-    edges_proj = edges.to_crs(target_crs)
-
-    # 2. Project the single point
-    point_gs = gpd.GeoSeries([point], crs="EPSG:4326").to_crs(target_crs)
-    point_proj = point_gs.iloc[0]
-
-    # 3. Compute distances and filter
-    dists = edges_proj.geometry.distance(point_proj)
-    within_mask = dists <= radius_meters
-
-    # 4. Return the original rows (in original CRS) that satisfy the mask
-    return edges.loc[within_mask.values]
+    return gdf.loc[within_mask.values]
