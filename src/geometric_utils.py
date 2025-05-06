@@ -2,41 +2,20 @@ from shapely.geometry import Point, LineString
 import geopandas as gpd
 
 
-def get_closest_edge(gdf: gpd.GeoDataFrame, point: Point) -> gpd.GeoSeries:
+def get_closest_row(gdf: gpd.GeoDataFrame, point: Point) -> gpd.GeoSeries:
     """
-    Returns the row of the GeoDataFrame whose LineString geometry
-    is closest to the given point.
+    Returns the row of the GeoDataFrame that is closest to the given point.
 
     Parameters:
-        gdf (GeoDataFrame): GeoDataFrame of LineStrings
+        gdf (GeoDataFrame): GeoDataFrame of Point geometries
         point (Point): The Shapely Point to compare against
 
     Returns:
-        GeoSeries: The row (as a Series) corresponding to the closest LineString
+        GeoSeries: The row (as a Series) corresponding to the closest Point
     """
     distances = gdf.geometry.distance(point)
     closest_idx = distances.idxmin()
     return gdf.loc[closest_idx]
-
-
-def get_closest_node(nodes: gpd.GeoDataFrame, point: Point) -> gpd.GeoSeries:
-    """
-    Returns the row of the GeoDataFrame whose Point geometry
-    is closest to the given point.
-
-    Parameters:
-        nodes (GeoDataFrame): GeoDataFrame of Point geometries
-        point (Point): The Shapely Point to compare against
-
-    Returns:
-        GeoSeries: The row (as a Series) corresponding to the closest node
-    """
-    # compute distances from each node to the target point
-    distances = nodes.geometry.distance(point)
-    # find the index of the minimum distance
-    closest_idx = distances.idxmin()
-    # return the full row (attributes + geometry)
-    return nodes.loc[closest_idx]
 
 
 def get_nearest_point_on_line(line: LineString, point: Point) -> Point:
