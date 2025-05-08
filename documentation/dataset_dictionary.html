@@ -28,125 +28,116 @@
   </thead>
   <tbody>
     <tr>
-      <td>CO2</td>
-      <td>Carbon dioxide (CO₂) concentration</td>
+      <td>close2smoking_shop_75</td>
+      <td>'Dummy' variable indicating whether the point is less than 75m away from a shop where smoking is usually allowed.</td>
+      <td>boolean</td>
+      <td>[0, 1]</td>
+      <td>osmnx_shops.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
+    </tr>
+    <tr>
+      <td>close2public_transport_15</td>
+      <td>'Dummy' variable indicating whether the point is less than 15m away from a public transport infrastructure.</td>
+      <td>boolean</td>
+      <td>[0, 1]</td>
+      <td>osmnx_public_transport.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
+    </tr>
+    <tr>
+      <td>num_public_transport_50</td>
+      <td>Number of public transport within 50m of the point</td>
+      <td>integer</td>
+      <td>[0, 13]</td>
+      <td>osmnx_public_transport.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
+    </tr>
+    <tr>
+      <td>num_public_transport_100</td>
+      <td>Number of public transport within 100m of the point</td>
+      <td>integer</td>
+      <td>[0, 27]</td>
+      <td>osmnx_public_transport.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
+    </tr>
+    <tr>
+      <td>close2industry_400</td>
+      <td>'Dummy' variable indicating wheter the point is less than 400m away from an industrial area</td>
+      <td>integer</td>
+      <td>[0, 1]</td>
+      <td>osmnx_landuse.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
+    </tr>
+    <tr>
+      <td>close2residential_200</td>
+      <td>'Dummy' variable indicating wheter the point is less than 200m away from a residential area</td>
+      <td>integer</td>
+      <td>[0, 1]</td>
+      <td>osmnx_landuse.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
+    </tr>
+    <tr>
+      <td>proportion_residential_400</td>
+      <td>Proportion of residential land area within a 400m radius circle around the point</td>
       <td>float</td>
-      <td>Depends on the subject</td>
-      <td>geolocate.ipynb</td>
-      <td>ANTHEM project</td>
-      <td>undisclosed</td>
+      <td>[np.float64(0.0), np.float64(0.8641728225051793)]</td>
+      <td>osmnx_landuse.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
     </tr>
     <tr>
-      <td>P</td>
-      <td>Atmospheric pressure data</td>
-      <td>float</td>
-      <td>Depends on the subject</td>
-      <td>geolocate.ipynb</td>
-      <td>ANTHEM project</td>
-      <td>undisclosed</td>
+      <td>close2railway_100</td>
+      <td>'Dummy' variable indicating wheter the point is less than 100m away from a railway</td>
+      <td>integer</td>
+      <td>[0, 1]</td>
+      <td>osmnx_landuse.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
     </tr>
     <tr>
-      <td>PM1</td>
-      <td>Particulate matter (PM) concentration for particles ≤1µm</td>
-      <td>float</td>
-      <td>Depends on the subject</td>
-      <td>geolocate.ipynb</td>
-      <td>ANTHEM project</td>
-      <td>undisclosed</td>
+      <td>close2grass_15</td>
+      <td>'Dummy' variable indicating wheter the point is less than 15m away from a grass area</td>
+      <td>integer</td>
+      <td>[0, 1]</td>
+      <td>osmnx_landuse.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
     </tr>
     <tr>
-      <td>PM10</td>
-      <td>Particulate matter (PM) concentration for particles ≤10µm</td>
-      <td>float</td>
-      <td>Depends on the subject</td>
-      <td>geolocate.ipynb</td>
-      <td>ANTHEM project</td>
-      <td>undisclosed</td>
+      <td>close2grass_100</td>
+      <td>'Dummy' variable indicating wheter the point is less than 100m away from a grass area</td>
+      <td>integer</td>
+      <td>[0, 1]</td>
+      <td>osmnx_landuse.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
     </tr>
     <tr>
-      <td>PM25</td>
-      <td>Particulate matter (PM) concentration for particles ≤2.5µm</td>
-      <td>float</td>
-      <td>Depends on the subject</td>
-      <td>geolocate.ipynb</td>
-      <td>ANTHEM project</td>
-      <td>undisclosed</td>
+      <td>close2construction_50</td>
+      <td>'Dummy' variable indicating wheter the point is less than 50m away from a construction area</td>
+      <td>integer</td>
+      <td>[0, 1]</td>
+      <td>osmnx_landuse.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
     </tr>
     <tr>
-      <td>RH</td>
-      <td>Relative humidity data</td>
-      <td>float</td>
-      <td>Depends on the subject</td>
-      <td>geolocate.ipynb</td>
-      <td>ANTHEM project</td>
-      <td>undisclosed</td>
+      <td>close2residential_10</td>
+      <td>'Dummy' variable indicating wheter the point is less than 10m away from a residential area</td>
+      <td>integer</td>
+      <td>[0, 1]</td>
+      <td>osmnx_landuse.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
     </tr>
     <tr>
-      <td>T</td>
-      <td>Temperature data</td>
-      <td>float</td>
-      <td>Depends on the subject</td>
-      <td>geolocate.ipynb</td>
-      <td>ANTHEM project</td>
-      <td>undisclosed</td>
-    </tr>
-    <tr>
-      <td>VOC</td>
-      <td>Volatile organic compounds (VOCs) concentration</td>
-      <td>float</td>
-      <td>Depends on the subject</td>
-      <td>geolocate.ipynb</td>
-      <td>ANTHEM project</td>
-      <td>undisclosed</td>
-    </tr>
-    <tr>
-      <td>signal</td>
-      <td>Signal marker of change in location</td>
-      <td>int</td>
-      <td>[0, 10000]</td>
-      <td>geolocate.ipynb</td>
-      <td>ANTHEM project</td>
-      <td>undisclosed</td>
-    </tr>
-    <tr>
-      <td>location</td>
-      <td>Location of the sample point</td>
-      <td>str</td>
-      <td>[A, AB, B, BC, C, CD, D, DE, E, EF, F, FG, G, GH]</td>
-      <td>geolocate.ipynb</td>
-      <td>ANTHEM project</td>
-      <td>undisclosed</td>
-    </tr>
-    <tr>
-      <td>regime</td>
-      <td>Regime of the sample point (static/dynamic) indicating if the subject is stationary or moving</td>
-      <td>str</td>
-      <td>[static, dynamic]</td>
-      <td>geolocate.ipynb</td>
-      <td>ANTHEM project</td>
-      <td>undisclosed</td>
-    </tr>
-    <tr>
-      <td>x</td>
-      <td>X coordinate of the sample point</td>
-      <td>float</td>
-      <td>[9.226580468713795, 9.23668]</td>
-      <td>geolocate.ipynb</td>
-      <td>ANTHEM project</td>
-      <td>undisclosed</td>
-    </tr>
-    <tr>
-      <td>y</td>
-      <td>Y coordinate of the sample point</td>
-      <td>float</td>
-      <td>[45.48497996269657, 45.4722252]</td>
-      <td>geolocate.ipynb</td>
-      <td>ANTHEM project</td>
-      <td>undisclosed</td>
-    </tr>
-    <tr>
-      <td>inside_green</td>
-      <td>'Dummy' variable indicating wheter the point is inside a green area or not</td>
+      <td>close2park_5</td>
+      <td>'Dummy' variable indicating whether the point is less than 5m away from a park or not</td>
       <td>boolean</td>
       <td>[0, 1]</td>
       <td>osmnx_parks.ipynb</td>
@@ -155,7 +146,7 @@
     </tr>
     <tr>
       <td>close2park_25</td>
-      <td>'Dummy' variable indicating wheter the point is less than 25m away from a park or not</td>
+      <td>'Dummy' variable indicating whether the point is less than 25m away from a park or not</td>
       <td>boolean</td>
       <td>[0, 1]</td>
       <td>osmnx_parks.ipynb</td>
@@ -164,7 +155,7 @@
     </tr>
     <tr>
       <td>close2garden_25</td>
-      <td>'Dummy' variable indicating wheter the point is less than 25m away from a garden or not</td>
+      <td>'Dummy' variable indicating whether the point is less than 25m away from a garden or not</td>
       <td>boolean</td>
       <td>[0, 1]</td>
       <td>osmnx_parks.ipynb</td>
@@ -222,6 +213,51 @@
       <td>float</td>
       <td>[0.12882339259190778, 0.007049415111455461]</td>
       <td>osmnx_parks.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
+    </tr>
+    <tr>
+      <td>num_trees_50</td>
+      <td>Number of trees within 50m of the point</td>
+      <td>integer</td>
+      <td>[0, 27]</td>
+      <td>osmnx_natural.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
+    </tr>
+    <tr>
+      <td>num_trees_500</td>
+      <td>Number of trees within 500m of the point</td>
+      <td>integer</td>
+      <td>[18, 805]</td>
+      <td>osmnx_natural.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
+    </tr>
+    <tr>
+      <td>close2woods_50</td>
+      <td>'Dummy' variable indicating whether the point is less than 50m away from the woods or not</td>
+      <td>boolean</td>
+      <td>[0, 1]</td>
+      <td>osmnx_natural.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
+    </tr>
+    <tr>
+      <td>close2woods_200</td>
+      <td>'Dummy' variable indicating whether the point is less than 200m away from the woods or not</td>
+      <td>boolean</td>
+      <td>[0, 1]</td>
+      <td>osmnx_natural.ipynb</td>
+      <td>OSM</td>
+      <td>https://www.openstreetmap.org/</td>
+    </tr>
+    <tr>
+      <td>close2grassland_200</td>
+      <td>'Dummy' variable indicating whether the point is less than 200m away from the grassland or not</td>
+      <td>boolean</td>
+      <td>[0, 1]</td>
+      <td>osmnx_natural.ipynb</td>
       <td>OSM</td>
       <td>https://www.openstreetmap.org/</td>
     </tr>
