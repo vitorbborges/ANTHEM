@@ -102,16 +102,25 @@ def add_osm_proximity(
     df: pd.DataFrame,
     gdf: gpd.GeoDataFrame,
     prefix: str,
-    thresholds: list,
-    type_col: str = None,
-    types: list = None,
+    thresholds: List[float],
+    type_col: Optional[Union[str, List[str]]] = None,
+    types: Optional[Union[str, List[Union[str, List[str]]]]] = None,
 ) -> pd.DataFrame:
-    """Add binary flags for proximity to OSM features."""
+    """
+    Add binary flags for proximity to OSM features, calling is_close_to() internally.
+    Supports passing a single column or a list of columns, with matching lists of value‐lists.
+    """
     for thr in thresholds:
         col = f"close2{prefix}_{thr}"
-        feats = gdf[gdf[type_col].isin(types)] if type_col and types else gdf
         df[col] = df.apply(
-            lambda r: is_close_to(feats, Point(r.x, r.y), threshold=thr), axis=1
+            lambda r: is_close_to(
+                features=gdf,
+                point=Point(r.x, r.y),
+                threshold=thr,
+                type_column=type_col,
+                types=types,
+            ),
+            axis=1,
         ).astype(int)
     return df
 
@@ -120,15 +129,25 @@ def add_osm_count(
     df: pd.DataFrame,
     gdf: gpd.GeoDataFrame,
     prefix: str,
-    thresholds: list,
-    type_col: str = None,
-    types: list = None,
+    thresholds: List[float],
+    type_col: Optional[Union[str, List[str]]] = None,
+    types: Optional[Union[str, List[Union[str, List[str]]]]] = None,
 ) -> pd.DataFrame:
+    """
+    Add counts of nearby OSM features, calling count_nearby() internally.
+    Supports multiple filter columns/types via the updated signature.
+    """
     for thr in thresholds:
         col = f"num_{prefix}_{thr}"
-        feats = gdf[gdf[type_col].isin(types)] if type_col and types else gdf
         df[col] = df.apply(
-            lambda r: count_nearby(feats, Point(r.x, r.y), threshold=thr), axis=1
+            lambda r: count_nearby(
+                features=gdf,
+                point=Point(r.x, r.y),
+                threshold=thr,
+                type_column=type_col,
+                types=types,
+            ),
+            axis=1,
         ).astype(int)
     return df
 
@@ -137,20 +156,115 @@ def add_osm_proportion(
     df: pd.DataFrame,
     gdf: gpd.GeoDataFrame,
     prefix: str,
-    thresholds: list,
-    type_col: str = None,
-    types: list = None,
+    thresholds: List[float],
+    type_col: Optional[Union[str, List[str]]] = None,
+    types: Optional[Union[str, List[Union[str, List[str]]]]] = None,
 ) -> pd.DataFrame:
+    """
+    Add land-cover proportions within thresholds, calling land_cover_proportion() internally.
+    Handles multi-column / multi-value filters automatically.
+    """
     for thr in thresholds:
         col = f"proportion_{prefix}_{thr}"
-        feats = gdf[gdf[type_col].isin(types)] if type_col and types else gdf
         df[col] = df.apply(
             lambda r: land_cover_proportion(
-                feats, Point(r.x, r.y), threshold=thr, type_column=type_col, types=types
+                features=gdf,
+                point=Point(r.x, r.y),
+                threshold=thr,
+                type_column=type_col,
+                types=types,
             ),
             axis=1,
         ).astype(float)
     return df
+
+
+def add_osm_mean(df, gdf, prefix, thresholds, value_col):
+    """
+    Add the mean of a numeric column within given radii.
+    """
+    for thr in thresholds:
+        col = f"average_{prefix}_{thr}"
+        df[col] = df.apply(
+            lambda r: get_nearest_rows(
+                gdf,
+                Point(r.x, r.y),
+                radius_meters=thr,
+            )[value_col].mean(),
+            axis=1,
+        ).astype(float)
+    return df
+
+
+# --------------------------------------------------
+# New building helpers (<20 lines each)
+# --------------------------------------------------
+
+
+def load_buildings(bbox: dict) -> gpd.GeoDataFrame:
+    """
+    Fetch building footprints and normalize the 'building:levels' tag.
+    """
+    tags = {"building": True}
+    gdf = features_from_bbox(bbox, tags)
+    gdf = gdf.replace({"building:levels": {"piano terra": 0}})
+    gdf.loc[gdf["level"] == "-1", "level"] = np.nan
+    gdf["level"] = gdf["level"].astype(float)
+    gdf["building:levels"] = gdf["building:levels"].astype(float).fillna(gdf["level"])
+    return gdf.drop(columns=["level"])
+
+
+def impute_building_levels(
+    gdf: gpd.GeoDataFrame, max_rank: int = 50
+) -> gpd.GeoDataFrame:
+    """
+    Run low-rank SVD imputation on building heights.
+    """
+    exclude = [
+        "geometry",
+        "name",
+        "name:de",
+        "name:es",
+        "name:fr",
+        "roof:levels",
+        "wikidata",
+        "wikimedia_commons",
+        "wikipedia",
+        "contact:street",
+        "ref",
+        "alt_name",
+        "description",
+        "operator",
+        "website",
+        "name:en",
+        "name:it",
+        "phone",
+        "addr:housenumber",
+        "loc_name",
+        "short_name",
+        "ref:vatin",
+        "source",
+        "start_date",
+        "addr:unit",
+        "end_date",
+        "note",
+        "internet_access",
+        "internet_access:ssid",
+        "internet_access:fee",
+        "opening_hours",
+        "ref:isil",
+        "check_date",
+        "check_date:opening_hours",
+        "opening_hours:signed",
+        "contact:email",
+        "contact:website",
+        "old_name",
+        "contact:phone",
+        "fax",
+        "operator:wikipedia",
+        "operator:wikidata",
+    ]
+    return impute_gdf(gdf, exclude=exclude, max_rank=max_rank)
 
 
 # --------------------------------------------------
@@ -259,7 +373,7 @@ def process_subject(subject_id: int):
         (
             "residential",
             {"landuse": True},
-            [200],
+            [10],
             "landuse",
             ["residential"],
             "proximity",
@@ -306,7 +420,7 @@ def process_subject(subject_id: int):
             {"leisure": ["park", "garden"], "amenity": ["town_square"]},
             [5, 25],
             "leisure",
-            ["park", "garden"],
+            ["park"],
             "proximity",
         ),
         (
@@ -333,31 +447,161 @@ def process_subject(subject_id: int):
             ["garden", "park"],
             "proportion",
         ),
+        # AMENITY-BASED FEATURES
+        # 1) smoking-allowed amenity within 30m
+        (
+            "smoking_amenity",
+            {"amenity": True},
+            [30],
+            ["outdoor_seating", "smoking"],
+            [["yes"], ["yes", "outside"]],
+            "proximity",
+        ),
+        # 2) cigarette dispenser within 50m
+        (
+            "cigarette_disposal",
+            {"amenity": True},
+            [50],
+            "waste",
+            ["cigarettes;mixed", "cigarettes"],
+            "proximity",
+        ),
+        # 3) waste disposal bin within 25m
+        (
+            "waste_disposal",
+            {"amenity": True},
+            [25],
+            "amenity",
+            ["waste_basket", "recycling", "waste_disposal"],
+            "proximity",
+        ),
+        # 4) parking space within 30m
+        (
+            "parking_space",
+            {"amenity": True},
+            [30],
+            ["amenity", "parking"],
+            [
+                ["parking", "parking_space", "parking_entrance", "motorcycle_parking"],
+                [],
+            ],
+            "proximity",
+        ),
+        # 5) fuel station within 40m
+        (
+            "fuel_station",
+            {"amenity": True},
+            [40],
+            "amenity",
+            ["fuel"],
+            "proximity",
+        ),
+        # 6) drinking water source within 20m
+        (
+            "drinking_water",
+            {"amenity": True},
+            [30],
+            "amenity",
+            ["drinking_water", "fountain"],
+            "proximity",
+        ),
+        # BUILDING-RELATED FEATURES -------------------------------------------
+        (
+            "industrial_building",
+            {"building": True},
+            [15, 100],
+            "building",
+            ["industrial"],
+            "proximity",
+        ),
+        (
+            "residential_buildings",
+            {"building": True},
+            [200],
+            "building",
+            ["residential", "apartments", "house", "dormitory", "semidetached_house"],
+            "count",
+        ),
+        (
+            "residential_buildings",
+            {"building": True},
+            [500],
+            "building",
+            ["residential", "apartments", "house", "dormitory", "semidetached_house"],
+            "proportion",
+        ),
+        (
+            "commercial_building",
+            {"building": True},
+            [25],
+            "building",
+            ["commercial"],
+            "proximity",
+        ),
+        (
+            "commercial_buildings",
+            {"building": True},
+            [200],
+            "building",
+            ["commercial", "service", "office", "kiosk", "retail"],
+            "count",
+        ),
+        # Building height mean (uses imputed footprints)
+        (
+            "building_height",
+            None,
+            [100],
+            None,
+            None,
+            "mean",
+            "building:levels",
+            "imp",
+        ),
     ]
 
-    # Pre-load unique OSM layers to avoid duplicate fetches
+    # ----------------------------------------------------------------------
+    # Pre-load OSM layers for non-mean modes
+    # ----------------------------------------------------------------------
+    gdf_cache = {}
+
     def freeze_tags(tags: dict) -> frozenset:
-        """Convert tags dict to hashable key."""
         return frozenset(
             (k, tuple(v) if isinstance(v, list) else v) for k, v in tags.items()
         )
 
-    gdf_cache = {}
-    for _, tags, *_ in feats:
-        key = freeze_tags(tags)
-        if key not in gdf_cache:
-            gdf_cache[key] = features_from_bbox(BBOX, tags)
+    for prefix, tags, thresholds, tc, ts, mode, *params in feats:
+        if mode != "mean":
+            key = freeze_tags(tags)
+            if key not in gdf_cache:
+                gdf_cache[key] = features_from_bbox(BBOX, tags)
 
-    # Loop through specs and apply appropriate OSM helper
-    for prefix, tags, thr, tc, ts, mode in feats:
-        key = freeze_tags(tags)
-        gdf = gdf_cache[key]
-        if mode == "proximity":
-            S = add_osm_proximity(S, gdf, prefix, thr, tc, ts)
-        elif mode == "count":
-            S = add_osm_count(S, gdf, prefix, thr, tc, ts)
+    # ----------------------------------------------------------------------
+    # Load and prepare specific GeoDataFrames for "mean" modes
+    # ----------------------------------------------------------------------
+    gdf_sources = {}
+    # example: building footprints
+    gdf_sources["bld"] = load_buildings(BBOX)
+    gdf_sources["imp"] = impute_building_levels(gdf_sources["bld"])
+    # future gdfs can be added here, e.g. gdf_sources['custom'] = load_custom(...)
+
+    # ----------------------------------------------------------------------
+    # Apply all features in one loop
+    # ----------------------------------------------------------------------
+    for prefix, tags, thresholds, tc, ts, mode, *params in feats:
+        if mode == "mean":
+            value_col, source_key = params
+            source_gdf = gdf_sources[source_key]
+            S = add_osm_mean(S, source_gdf, prefix, thresholds, value_col)
         else:
-            S = add_osm_proportion(S, gdf, prefix, thr, tc, ts)
+            source_gdf = gdf_cache[freeze_tags(tags)]
+            if mode == "proximity":
+                S = add_osm_proximity(S, source_gdf, prefix, thresholds, tc, ts)
+            elif mode == "count":
+                S = add_osm_count(S, source_gdf, prefix, thresholds, tc, ts)
+            elif mode == "proportion":
+                S = add_osm_proportion(S, source_gdf, prefix, thresholds, tc, ts)
+            else:
+                raise ValueError(f"Unknown mode: {mode}")
 
     wd_dirs = list(raw.glob("RW_*"))
     if wd_dirs:

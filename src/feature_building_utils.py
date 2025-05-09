@@ -50,31 +50,30 @@ def is_close_to(
     features: gpd.GeoDataFrame,
     point: Point,
     threshold: float,
-    type_column: Optional[str] = None,
-    types: Optional[Union[str, List[str]]] = None,
+    type_column: Optional[Union[str, List[str]]] = None,
+    types: Optional[Union[str, List[Union[str, List[str]]]]] = None,
 ) -> bool:
     """
     Return True if `point` is within `threshold` meters of any geometry in `features`.
-
-    Optionally filters `features` by a column and value(s) before testing.
-
-    Parameters:
-        features (GeoDataFrame): geometries in EPSG:4326
-        point (Point): location in EPSG:4326
-        threshold (float): distance in meters
-        type_column (str, optional): column name to filter on
-        types (str or list, optional): value(s) in `type_column` to include
-
-    Returns:
-        bool: True if at least one feature is within `threshold` meters
+    Can filter by one or multiple columns/types before testing.
     """
-    # filter by type if requested
+    # filter by type(s) if requested
     if type_column and types is not None:
-        vals = [types] if isinstance(types, str) else list(types)
-        features = features[features[type_column].isin(vals)]
+        # normalize to lists
+        cols = [type_column] if isinstance(type_column, str) else list(type_column)
+        vals = types
+        # if single list of vals for multiple cols, repeat it
+        if not isinstance(vals[0] if isinstance(vals, list) else vals, (list, tuple)):
+            vals = [vals] * len(cols)
+        vals_list = [v if isinstance(v, (list, tuple)) else [v] for v in vals]
+        mask = False
+        for col, allowed in zip(cols, vals_list):
+            mask = mask | features[col].isin(allowed)
+        features = features[mask]
         if features.empty:
             return False
 
+    # project to metric CRS
     features_proj = features.to_crs("EPSG:3857")
     point_proj = gpd.GeoSeries([point], crs="EPSG:4326").to_crs("EPSG:3857").iloc[0]
 
@@ -86,28 +85,24 @@ def count_nearby(
     features: gpd.GeoDataFrame,
     point: Point,
     threshold: float,
-    type_column: Optional[str] = None,
-    types: Optional[Union[str, List[str]]] = None,
+    type_column: Optional[Union[str, List[str]]] = None,
+    types: Optional[Union[str, List[Union[str, List[str]]]]] = None,
 ) -> int:
     """
-    Count how many geometries in `features` lie within `threshold` meters of `point`.
-
-    Optionally filters `features` by a column and value(s) before counting.
-
-    Parameters:
-        features (GeoDataFrame): geometries in EPSG:4326
-        point (Point): location in EPSG:4326
-        threshold (float): distance in meters
-        type_column (str, optional): column name to filter on
-        types (str or list, optional): value(s) in `type_column` to include
-
-    Returns:
-        int: number of features within `threshold` meters
+    Count how many geometries in `features` are within `threshold` meters of `point`.
+    Supports filtering by one or multiple columns/types.
     """
-    # filter by type if requested
+    # filter by type(s) if requested
     if type_column and types is not None:
-        vals = [types] if isinstance(types, str) else list(types)
-        features = features[features[type_column].isin(vals)]
+        cols = [type_column] if isinstance(type_column, str) else list(type_column)
+        vals = types
+        if not isinstance(vals[0] if isinstance(vals, list) else vals, (list, tuple)):
+            vals = [vals] * len(cols)
+        vals_list = [v if isinstance(v, (list, tuple)) else [v] for v in vals]
+        mask = False
+        for col, allowed in zip(cols, vals_list):
+            mask = mask | features[col].isin(allowed)
+        features = features[mask]
         if features.empty:
             return 0
 
@@ -122,45 +117,35 @@ def land_cover_proportion(
     features: gpd.GeoDataFrame,
     point: Point,
     threshold: float = 100.0,
-    type_column: Optional[str] = None,
-    types: Optional[Union[str, List[str]]] = None,
+    type_column: Optional[Union[str, List[str]]] = None,
+    types: Optional[Union[str, List[Union[str, List[str]]]]] = None,
 ) -> float:
     """
-    Calculate the proportion of area within `threshold` meters of `point`
-    that is covered by the geometries in `features`, optionally filtering
-    by feature type.
-
-    Parameters:
-        features (GeoDataFrame): geometries in EPSG:4326.
-        point (Point): center point in EPSG:4326.
-        threshold (float): buffer radius in meters (default: 100.0).
-        type_column (str, optional): column name to filter on.
-        types (str or list, optional): value(s) in `type_column` to include.
-
-    Returns:
-        float: fraction (0.0–1.0) of the buffer’s area occupied by the features.
+    Proportion of area within `threshold` meters of `point` covered by `features`.
+    Supports filtering by one or multiple columns/types.
     """
-    # Filter by type if requested
+    # filter by type(s) if requested
     if type_column and types is not None:
-        vals = [types] if isinstance(types, str) else list(types)
-        features = features[features[type_column].isin(vals)]
+        cols = [type_column] if isinstance(type_column, str) else list(type_column)
+        vals = types
+        if not isinstance(vals[0] if isinstance(vals, list) else vals, (list, tuple)):
+            vals = [vals] * len(cols)
+        vals_list = [v if isinstance(v, (list, tuple)) else [v] for v in vals]
+        mask = False
+        for col, allowed in zip(cols, vals_list):
+            mask = mask | features[col].isin(allowed)
+        features = features[mask]
         if features.empty:
             return 0.0
 
-    # Project to metric CRS for accurate buffering & area calcs
     features_proj = features.to_crs("EPSG:3857")
     point_proj = gpd.GeoSeries([point], crs="EPSG:4326").to_crs("EPSG:3857").iloc[0]
-
-    # Build the buffer
     buffer_geom = point_proj.buffer(threshold)
 
-    # Compute intersection area
     intersection_area = features_proj.geometry.intersection(buffer_geom).area.sum()
-
-    # Compute buffer area
     buffer_area = buffer_geom.area
 
-    return intersection_area / buffer_area
+    return intersection_area / buffer_area if buffer_area > 0 else 0.0
 
 
 def impute_gdf(
@@ -210,7 +195,9 @@ def impute_gdf(
     M = pd.concat([X[num_cols], dummies], axis=1).astype(float)
 
     # 6) Apply SoftImpute
-    filled = SoftImpute(max_rank=max_rank, max_iters=max_iters).fit_transform(M.values)
+    filled = SoftImpute(
+        max_rank=max_rank, max_iters=max_iters, verbose=False
+    ).fit_transform(M.values)
     M_filled = pd.DataFrame(filled, columns=M.columns, index=M.index)
 
     # 7) Build output GeoDataFrame
