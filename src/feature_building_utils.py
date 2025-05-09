@@ -1,10 +1,10 @@
-import geopandas as gpd
-from shapely.geometry import Point
-from typing import Optional, Union, List
-from fancyimpute import SoftImpute
-import pandas as pd
-import numpy as np
+from typing import List, Optional, Union
 
+import geopandas as gpd
+import numpy as np
+import pandas as pd
+from fancyimpute import SoftImpute
+from shapely.geometry import Point
 
 # GLOBAL VARIABLES
 WEST, SOUTH, EAST, NORTH = 9.2257, 45.47162, 9.23768, 45.48537
