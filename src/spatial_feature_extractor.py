@@ -5,10 +5,14 @@ from typing import Any, Callable, Dict, Optional, Sequence, Union
 
 import geopandas as gpd
 import numpy as np
+import osmnx as ox
 import pandas as pd
 from osmnx.features import features_from_bbox
 from shapely.geometry import LineString, Point
 from shapely.ops import linemerge, substring
+
+from src.feature_building_utils import *
+from src.feature_imputer import FeatureImputer
 
 
 class SpatialFeatureExtractor:
@@ -35,75 +39,76 @@ class SpatialFeatureExtractor:
         self.osm_layer_cache: Dict[frozenset, gpd.GeoDataFrame] = {}
         self.geo_sources: Dict[str, gpd.GeoDataFrame] = {}
         # Graph/network attributes
-        self._graph = None
-        self._graph_nodes: Optional[gpd.GeoDataFrame] = None
-        self._graph_edges: Optional[gpd.GeoDataFrame] = None
-        self._graph_imputed_edges: Optional[gpd.GeoDataFrame] = None
-        self._graph_cars: Optional[gpd.GeoDataFrame] = None
-        # Register graph edges and car-only edges for mean calculations
-        self.load_mean_source("edges", lambda: self._get_graph_edges())
-        self.load_mean_source("cars", lambda: self._get_graph_cars())
 
-    def _load_graph(self) -> None:
-        """
-        Load and cache the OSM street network graph, extract nodes and edges,
-        process and impute edge attributes, and derive the car-only subset.
-        """
-        if self._graph is None:
-            # Fetch full street network graph
-            north, south, east, west = self.bbox
-            self._graph = ox.graph_from_bbox(
-                north, south, east, west, network_type="all", simplify=False
-            )
-            # Convert to GeoDataFrames
-            nodes, edges = ox.graph_to_gdfs(self._graph)
-            # Process original edges for imputation
-            edges_orig = edges.copy()
-            edges_orig["lanes"] = edges_orig["lanes"].fillna(0)
-            edges_orig["oneway"] = edges_orig["oneway"].astype(int)
-            edges_orig["reversed"] = edges_orig["reversed"].astype(int)
-            edges_orig["maxspeed"] = edges_orig["maxspeed"].astype(float)
-            # Enforce single lane on one-way streets
-            edges_orig.loc[edges_orig["oneway"] == 1, "lanes"] = 1
-            # Set zero lanes to NaN for imputation
-            edges_orig.loc[edges_orig["lanes"] == 0, "lanes"] = np.nan
-            # Cache nodes and raw edges
-            self._graph_nodes = nodes
-            self._graph_edges = edges_orig
-            # Impute edge attributes using MICE
-            imputed = FeatureImputer.impute_edges(edges_orig)
-            self._graph_imputed_edges = imputed
-            # Derive car-only edges (exclude footway-like types)
-            foot_types = [
-                "footway",
-                "pedestrian",
-                "unclassified",
-                "steps",
-                "corridor",
-                "path",
-            ]
-            mask_foot = imputed["highway"].isin(foot_types)
-            self._graph_cars = imputed.loc[~mask_foot].copy()
+    #     self._graph = None
+    #     self._graph_nodes: Optional[gpd.GeoDataFrame] = None
+    #     self._graph_edges: Optional[gpd.GeoDataFrame] = None
+    #     self._graph_imputed_edges: Optional[gpd.GeoDataFrame] = None
+    #     self._graph_cars: Optional[gpd.GeoDataFrame] = None
+    #     # Register graph edges and car-only edges for mean calculations
+    #     self.load_mean_source("edges", lambda: self._get_graph_edges())
+    #     self.load_mean_source("cars", lambda: self._get_graph_cars())
 
-    def _get_graph_nodes(self) -> gpd.GeoDataFrame:
-        if self._graph_nodes is None:
-            self._load_graph()
-        return self._graph_nodes
+    # def _load_graph(self) -> None:
+    #     """
+    #     Load and cache the OSM street network graph, extract nodes and edges,
+    #     process and impute edge attributes, and derive the car-only subset.
+    #     """
+    #     if self._graph is None:
+    #         # Fetch full street network graph
+    #         north, south, east, west = self.bbox
+    #         self._graph = ox.graph_from_bbox(
+    #             north, south, east, west, network_type="all", simplify=False
+    #         )
+    #         # Convert to GeoDataFrames
+    #         nodes, edges = ox.graph_to_gdfs(self._graph)
+    #         # Process original edges for imputation
+    #         edges_orig = edges.copy()
+    #         edges_orig["lanes"] = edges_orig["lanes"].fillna(0)
+    #         edges_orig["oneway"] = edges_orig["oneway"].astype(int)
+    #         edges_orig["reversed"] = edges_orig["reversed"].astype(int)
+    #         edges_orig["maxspeed"] = edges_orig["maxspeed"].astype(float)
+    #         # Enforce single lane on one-way streets
+    #         edges_orig.loc[edges_orig["oneway"] == 1, "lanes"] = 1
+    #         # Set zero lanes to NaN for imputation
+    #         edges_orig.loc[edges_orig["lanes"] == 0, "lanes"] = np.nan
+    #         # Cache nodes and raw edges
+    #         self._graph_nodes = nodes
+    #         self._graph_edges = edges_orig
+    #         # Impute edge attributes using MICE
+    #         imputed = FeatureImputer.impute_edges(edges_orig)
+    #         self._graph_imputed_edges = imputed
+    #         # Derive car-only edges (exclude footway-like types)
+    #         foot_types = [
+    #             "footway",
+    #             "pedestrian",
+    #             "unclassified",
+    #             "steps",
+    #             "corridor",
+    #             "path",
+    #         ]
+    #         mask_foot = imputed["highway"].isin(foot_types)
+    #         self._graph_cars = imputed.loc[~mask_foot].copy()
 
-    def _get_graph_edges(self) -> gpd.GeoDataFrame:
-        if self._graph_edges is None:
-            self._load_graph()
-        return self._graph_edges
+    # def _get_graph_nodes(self) -> gpd.GeoDataFrame:
+    #     if self._graph_nodes is None:
+    #         self._load_graph()
+    #     return self._graph_nodes
 
-    def _get_graph_imputed_edges(self) -> gpd.GeoDataFrame:
-        if self._graph_imputed_edges is None:
-            self._load_graph()
-        return self._graph_imputed_edges
+    # def _get_graph_edges(self) -> gpd.GeoDataFrame:
+    #     if self._graph_edges is None:
+    #         self._load_graph()
+    #     return self._graph_edges
 
-    def _get_graph_cars(self) -> gpd.GeoDataFrame:
-        if self._graph_cars is None:
-            self._load_graph()
-        return self._graph_cars
+    # def _get_graph_imputed_edges(self) -> gpd.GeoDataFrame:
+    #     if self._graph_imputed_edges is None:
+    #         self._load_graph()
+    #     return self._graph_imputed_edges
+
+    # def _get_graph_cars(self) -> gpd.GeoDataFrame:
+    #     if self._graph_cars is None:
+    #         self._load_graph()
+    #     return self._graph_cars
 
     def extract_kml(self, kmz_path: Path) -> gpd.GeoDataFrame:
         """
@@ -351,22 +356,33 @@ class SpatialFeatureExtractor:
         bool
             True if at least one geometry in `features` is within `threshold` meters of `point`.
         """
+        # ─── Filter by type(s) exactly as in the standalone version ──────────
+
         if type_column and types is not None:
+            # normalize column(s)
             cols = [type_column] if isinstance(type_column, str) else list(type_column)
-            vals = types if isinstance(types, (list, tuple)) else [types]
-            mask = pd.Series(False, index=features.index)
-            for col, allowed in zip(cols, vals):
-                allowed_list = (
-                    allowed if isinstance(allowed, (list, tuple)) else [allowed]
-                )
-                mask |= features[col].isin(allowed_list)
-            features = features.loc[mask]
+            # take types as-is
+            vals = types
+            # if it's a single non-list/tuple, or a flat list rather than a list-of-lists,
+            # repeat it for each column
+            first = vals[0] if isinstance(vals, list) else vals
+            if not isinstance(first, (list, tuple)):
+                vals = [vals] * len(cols)
+            # ensure each entry is a list
+            vals_list = [v if isinstance(v, (list, tuple)) else [v] for v in vals]
+            # build mask exactly like `mask = False; mask = mask | …`
+            mask = False
+            for col, allowed in zip(cols, vals_list):
+                mask = mask | features[col].isin(allowed)
+            features = features[mask]
             if features.empty:
                 return False
 
+        # ─── Projection and distance test ────────────────────────────────────
         feats_proj = features.to_crs("EPSG:3857")
         p_proj = gpd.GeoSeries([point], crs="EPSG:4326").to_crs("EPSG:3857").iloc[0]
-        return (feats_proj.geometry.distance(p_proj) <= threshold).any()
+        distances = feats_proj.geometry.distance(p_proj)
+        return (distances <= threshold).any()
 
     def count_nearby(
         self,
@@ -397,23 +413,32 @@ class SpatialFeatureExtractor:
         int
             The count of geometries within `threshold` meters of `point`.
         """
-        sub = features.copy()
+        sub = features
+        # ——— Filter by type(s) exactly like the standalone version —————————————
         if type_column and types is not None:
+            # normalize column(s)
             cols = [type_column] if isinstance(type_column, str) else list(type_column)
-            vals = types if isinstance(types, (list, tuple)) else [types]
-            mask = pd.Series(False, index=sub.index)
-            for col, allowed in zip(cols, vals):
-                allowed_list = (
-                    allowed if isinstance(allowed, (list, tuple)) else [allowed]
-                )
-                mask |= sub[col].isin(allowed_list)
+            # take types as given
+            vals = types
+            # if it's a single non-list/tuple or a flat list, repeat it for each col
+            first = vals[0] if isinstance(vals, list) else vals
+            if not isinstance(first, (list, tuple)):
+                vals = [vals] * len(cols)
+            # ensure each entry is a list
+            vals_list = [v if isinstance(v, (list, tuple)) else [v] for v in vals]
+
+            mask = False
+            for col, allowed in zip(cols, vals_list):
+                mask = mask | sub[col].isin(allowed)
             sub = sub.loc[mask]
             if sub.empty:
                 return 0
 
-        proj = sub.to_crs("EPSG:3857")
+        # ——— Project and count distances ————————————————————————————————
+        sub_proj = sub.to_crs("EPSG:3857")
         p_proj = gpd.GeoSeries([point], crs="EPSG:4326").to_crs("EPSG:3857").iloc[0]
-        return int((proj.geometry.distance(p_proj) <= threshold).sum())
+        dists = sub_proj.geometry.distance(p_proj)
+        return int((dists <= threshold).sum())
 
     def add_proximity(
         self,
@@ -500,7 +525,7 @@ class SpatialFeatureExtractor:
         for r in radii:
             col = f"num_{prefix}_{int(r)}"
             result[col] = result.apply(
-                lambda row: self.count_nearby(
+                lambda row: count_nearby(
                     layer, Point(row.x, row.y), r, type_column, types
                 ),
                 axis=1,
@@ -547,7 +572,7 @@ class SpatialFeatureExtractor:
         for r in radii:
             col = f"proportion_{prefix}_{int(r)}"
             result[col] = result.apply(
-                lambda row: self.land_cover_proportion(
+                lambda row: land_cover_proportion(
                     layer, Point(row.x, row.y), r, type_column, types
                 ),
                 axis=1,
@@ -586,25 +611,31 @@ class SpatialFeatureExtractor:
         float
             Proportion of buffer area covered by filtered features (0.0–1.0).
         """
+        sub = features
+        # ——— Filter by type(s) exactly like the standalone version —————————————
         if type_column and types is not None:
             cols = [type_column] if isinstance(type_column, str) else list(type_column)
-            vals = types if isinstance(types, (list, tuple)) else [types]
-            mask = pd.Series(False, index=features.index)
-            for col, allowed in zip(cols, vals):
-                allowed_list = (
-                    allowed if isinstance(allowed, (list, tuple)) else [allowed]
-                )
-                mask |= features[col].isin(allowed_list)
-            features = features.loc[mask]
-            if features.empty:
+            vals = types
+            first = vals[0] if isinstance(vals, list) else vals
+            if not isinstance(first, (list, tuple)):
+                vals = [vals] * len(cols)
+            vals_list = [v if isinstance(v, (list, tuple)) else [v] for v in vals]
+
+            mask = False
+            for col, allowed in zip(cols, vals_list):
+                mask = mask | sub[col].isin(allowed)
+            sub = sub.loc[mask]
+            if sub.empty:
                 return 0.0
 
-        feats_proj = features.to_crs("EPSG:3857")
+        # ——— Project to metric CRS, build buffer, and compute proportion ————————
+        sub_proj = sub.to_crs("EPSG:3857")
         p_proj = gpd.GeoSeries([point], crs="EPSG:4326").to_crs("EPSG:3857").iloc[0]
         buffer_geom = p_proj.buffer(threshold)
-        inter_area = feats_proj.geometry.intersection(buffer_geom).area.sum()
-        buf_area = buffer_geom.area
-        return inter_area / buf_area if buf_area > 0 else 0.0
+        inter_area = sub_proj.geometry.intersection(buffer_geom).area.sum()
+        buffer_area = buffer_geom.area
+
+        return inter_area / buffer_area if buffer_area > 0 else 0.0
 
     def add_mean(
         self,
@@ -638,16 +669,27 @@ class SpatialFeatureExtractor:
         pd.DataFrame
             Copy of `df` with new float columns 'average_{prefix}_{radius}'.
         """
-        layer = self.geo_sources.get(source_key)
+        # 1) grab and reproject the layer
+
+        layer = self.geo_sources[source_key]
+        layer_proj = layer.to_crs(epsg=3857)
+
+        # 2) make a GeoSeries of your sample points and reproject them
+        pts = gpd.GeoSeries(
+            [Point(xy) for xy in zip(df.x, df.y)], index=df.index, crs="EPSG:4326"
+        ).to_crs(epsg=3857)
+
         result = df.copy()
         for r in radii:
             col = f"average_{prefix}_{int(r)}"
-            result[col] = result.apply(
-                lambda row: layer.loc[
-                    layer.geometry.distance(Point(row.x, row.y)) <= r, value_column
-                ].mean(),
-                axis=1,
-            )
+            means = []
+            for pt in pts:
+                # compute distances in metres
+                dists = layer_proj.geometry.distance(pt)
+                # take the mean of all features within r metres
+                means.append(layer_proj.loc[dists <= r, value_column].mean())
+            result[col] = means
+
         return result
 
     def load_mean_source(
