@@ -58,14 +58,20 @@ def is_close_to(
     Can filter by one or multiple columns/types before testing.
     """
     # filter by type(s) if requested
+    # ─── Filter by type(s) exactly as in the standalone version ─────────────────
     if type_column and types is not None:
-        # normalize to lists
+        # normalize column(s)
         cols = [type_column] if isinstance(type_column, str) else list(type_column)
+        # take types as-is
         vals = types
-        # if single list of vals for multiple cols, repeat it
-        if not isinstance(vals[0] if isinstance(vals, list) else vals, (list, tuple)):
+        # if it's a single non-list/tuple, or a flat list rather than a list-of-lists,
+        # repeat it for each column
+        first = vals[0] if isinstance(vals, list) else vals
+        if not isinstance(first, (list, tuple)):
             vals = [vals] * len(cols)
+        # ensure each entry is a list
         vals_list = [v if isinstance(v, (list, tuple)) else [v] for v in vals]
+        # build mask exactly like `mask = False; mask = mask | …`
         mask = False
         for col, allowed in zip(cols, vals_list):
             mask = mask | features[col].isin(allowed)
@@ -73,11 +79,10 @@ def is_close_to(
         if features.empty:
             return False
 
-    # project to metric CRS
-    features_proj = features.to_crs("EPSG:3857")
-    point_proj = gpd.GeoSeries([point], crs="EPSG:4326").to_crs("EPSG:3857").iloc[0]
-
-    distances = features_proj.geometry.distance(point_proj)
+    # ─── Projection and distance test ───────────────────────────────────────────
+    feats_proj = features.to_crs("EPSG:3857")
+    p_proj = gpd.GeoSeries([point], crs="EPSG:4326").to_crs("EPSG:3857").iloc[0]
+    distances = feats_proj.geometry.distance(p_proj)
     return (distances <= threshold).any()
 
 
