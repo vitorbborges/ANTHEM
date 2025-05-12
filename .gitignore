@@ -175,7 +175,8 @@ cython_debug/
 
 # FILES
 # Ignore everything under data/
-data/*
+data/adapted_raw_data/
+data/processed_data/
 
 # Re-allow the specific subdirectory so Git will check inside it
 !data/raw_data/
