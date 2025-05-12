@@ -1,7 +1,8 @@
-from scipy.interpolate import interp1d
-import pandas as pd
-import numpy as np
 import os
+
+import numpy as np
+import pandas as pd
+from scipy.interpolate import interp1d
 
 
 def read_var(subject_id: int, variable: str):
@@ -35,39 +36,30 @@ def read_var(subject_id: int, variable: str):
 
 
 def load_var(data_df: pd.DataFrame):
-    """
-    Load a variable from a .mat file and convert the signal column to a categorical indicator of location.
+    # make ‘location’ from the cumsum, then switch it to object dtype:
+    data_df["location"] = data_df["signal"].cumsum().astype(int).astype(object)
 
-    Args:
-        subject_id (int): The subject ID.
-        variable (str): The variable name to load.
-
-    Returns:
-        pd.DataFrame: The loaded variable as a pandas DataFrame.
-    """
-
-    # Convert the signal column to a categorical indicator of location
-    data_df["location"] = data_df["signal"].cumsum()
-    for i, state in enumerate(
-        [
-            "A",
-            "AB",
-            "B",
-            "BC",
-            "C",
-            "CD",
-            "D",
-            "DE",
-            "E",
-            "EF",
-            "F",
-            "FG",
-            "G",
-            "GH",
-            "H",
-        ]
-    ):
+    # now you can safely assign strings into it
+    states = [
+        "A",
+        "AB",
+        "B",
+        "BC",
+        "C",
+        "CD",
+        "D",
+        "DE",
+        "E",
+        "EF",
+        "F",
+        "FG",
+        "G",
+        "GH",
+        "H",
+    ]
+    for i, state in enumerate(states):
         data_df.loc[data_df["location"] == i * 10000, "location"] = state
+
     static_list = ["A", "B", "C", "D", "E", "F", "G", "H"]
     data_df["regime"] = np.where(
         data_df["location"].isin(static_list), "static", "dynamic"
@@ -94,7 +86,6 @@ def load_subject(subject_id: int):
 
     read = []
     for var in variables:
-        print(f"Loading {var} for subject {subject_id}")
         try:
             df_var = read_var(subject_id, var)
 

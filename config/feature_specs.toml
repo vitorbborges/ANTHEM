@@ -1,272 +1,335 @@
-# Feature specifications for ProcessSubjectPipeline
-# Array of tables, one per feature
-
 [[features]]
 prefix = "water"
-tags = { natural = ["water", "wetland"], waterway = true, water = true }
+source = { natural = ["water", "wetland"], waterway = true, water = true }
 radii = [25, 100]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "smoking_shop"
-tags = { shop = true }
+source = { shop = true }
 radii = [75]
-type_column = "shop"
-type_values = ["kiosk", "tobacco", "cannabis", "alcohol", "coffee"]
+column = "shop"
+values = ["kiosk", "tobacco", "cannabis", "alcohol", "coffee"]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "chimney"
-tags = { man_made = true }
+source = { man_made = true }
 radii = [150]
-type_column = "man_made"
-type_values = ["chimney"]
+column = "man_made"
+values = ["chimney"]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "water_tap"
-tags = { man_made = true }
+source = { man_made = true }
 radii = [75]
-type_column = "man_made"
-type_values = ["water_tap"]
+column = "man_made"
+values = ["water_tap"]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "public_transport"
-tags = { public_transport = true }
+source = { public_transport = true }
 radii = [15]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "public_transport"
-tags = { public_transport = true }
+source = { public_transport = true }
 radii = [50, 100]
 mode = "count"
-params = []
 
 [[features]]
 prefix = "industry"
-tags = { landuse = true }
+source = { landuse = true }
 radii = [400]
-type_column = "landuse"
-type_values = ["industrial"]
+column = "landuse"
+values = ["industrial"]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "residential"
-tags = { landuse = true }
+source = { landuse = true }
 radii = [10]
-type_column = "landuse"
-type_values = ["residential"]
+column = "landuse"
+values = ["residential"]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "residential"
-tags = { landuse = true }
+source = { landuse = true }
 radii = [400]
-type_column = "landuse"
-type_values = ["residential"]
+column = "landuse"
+values = ["residential"]
 mode = "proportion"
-params = []
 
 [[features]]
 prefix = "railway"
-tags = { landuse = true }
+source = { landuse = true }
 radii = [100]
-type_column = "landuse"
-type_values = ["railway"]
+column = "landuse"
+values = ["railway"]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "grass"
-tags = { landuse = true }
+source = { landuse = true }
 radii = [15, 100]
-type_column = "landuse"
-type_values = ["grass"]
+column = "landuse"
+values = ["grass"]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "construction"
-tags = { landuse = true }
+source = { landuse = true }
 radii = [50]
-type_column = "landuse"
-type_values = ["construction"]
+column = "landuse"
+values = ["construction"]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "trees"
-tags = { natural = true }
+source = { natural = true }
 radii = [50, 500]
-type_column = "natural"
-type_values = ["tree", "tree_stump"]
+column = "natural"
+values = ["tree", "tree_stump"]
 mode = "count"
-params = []
 
 [[features]]
 prefix = "woods"
-tags = { natural = true }
+source = { natural = true }
 radii = [50, 200]
-type_column = "natural"
-type_values = ["wood", "shrub", "scrub"]
+column = "natural"
+values = ["wood", "shrub", "scrub"]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "grassland"
-tags = { natural = true }
+source = { natural = true }
 radii = [200]
-type_column = "natural"
-type_values = ["grassland"]
+column = "natural"
+values = ["grassland"]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "park"
-tags = { leisure = ["park", "garden"] }
+source = { leisure = ["park", "garden"] }
 radii = [5, 25]
-type_column = "leisure"
-type_values = ["park"]
+column = "leisure"
+values = ["park"]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "garden"
-tags = { leisure = ["park", "garden"] }
+source = { leisure = ["park", "garden"] }
 radii = [25]
-type_column = "leisure"
-type_values = ["garden"]
+column = "leisure"
+values = ["garden"]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "green"
-tags = { leisure = ["park", "garden"] }
+source = { leisure = ["park", "garden"] }
 radii = [200, 500, 1000]
-type_column = "leisure"
-type_values = ["park", "garden"]
+column = "leisure"
+values = ["park", "garden"]
 mode = "count"
-params = []
 
 [[features]]
 prefix = "green"
-tags = { leisure = ["park", "garden"] }
+source = { leisure = ["park", "garden"] }
 radii = [50, 100, 500]
-type_column = "leisure"
-type_values = ["park", "garden"]
+column = "leisure"
+values = ["park", "garden"]
 mode = "proportion"
-params = []
 
 [[features]]
 prefix = "smoking_amenity"
-tags = { amenity = true }
+source = { amenity = true }
 radii = [30]
-type_column = ["outdoor_seating", "smoking"]
-type_values = [["yes"], ["yes", "outside"]]
+column = ["outdoor_seating", "smoking"]
+values = [["yes"], ["yes", "outside"]]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "cigarette_disposal"
-tags = { amenity = true }
+source = { amenity = true }
 radii = [50]
-type_column = "waste"
-type_values = ["cigarettes;mixed", "cigarettes"]
+column = "waste"
+values = ["cigarettes;mixed", "cigarettes"]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "waste_disposal"
-tags = { amenity = true }
+source = { amenity = true }
 radii = [25]
-type_column = "amenity"
-type_values = ["waste_basket", "recycling", "waste_disposal"]
+column = "amenity"
+values = ["waste_basket", "recycling", "waste_disposal"]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "parking_space"
-tags = { amenity = true }
+source = { amenity = true }
 radii = [30]
-type_column = ["amenity", "parking"]
-type_values = [["parking", "parking_space", "parking_entrance", "motorcycle_parking"], []]
+column = ["amenity", "parking"]
+values = [["parking", "parking_space", "parking_entrance", "motorcycle_parking"], []]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "fuel_station"
-tags = { amenity = true }
+source = { amenity = true }
 radii = [40]
-type_column = "amenity"
-type_values = ["fuel"]
+column = "amenity"
+values = ["fuel"]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "drinking_water"
-tags = { amenity = true }
+source = { amenity = true }
 radii = [30]
-type_column = "amenity"
-type_values = ["drinking_water", "fountain"]
+column = "amenity"
+values = ["drinking_water", "fountain"]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "industrial_building"
-tags = { building = true }
+source = { building = true }
 radii = [15, 100]
-type_column = "building"
-type_values = ["industrial"]
+column = "building"
+values = ["industrial"]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "residential_buildings"
-tags = { building = true }
+source = { building = true }
 radii = [200]
-type_column = "building"
-type_values = ["residential", "apartments", "house", "dormitory", "semidetached_house"]
+column = "building"
+values = ["residential", "apartments", "house", "dormitory", "semidetached_house"]
 mode = "count"
-params = []
 
 [[features]]
 prefix = "residential_buildings"
-tags = { building = true }
+source = { building = true }
 radii = [500]
-type_column = "building"
-type_values = ["residential", "apartments", "house", "dormitory", "semidetached_house"]
+column = "building"
+values = ["residential", "apartments", "house", "dormitory", "semidetached_house"]
 mode = "proportion"
-params = []
 
 [[features]]
 prefix = "commercial_building"
-tags = { building = true }
+source = { building = true }
 radii = [25]
-type_column = "building"
-type_values = ["commercial"]
+column = "building"
+values = ["commercial"]
 mode = "proximity"
-params = []
 
 [[features]]
 prefix = "commercial_buildings"
-tags = { building = true }
+source = { building = true }
 radii = [200]
-type_column = "building"
-type_values = ["commercial", "service", "office", "kiosk", "retail"]
+column = "building"
+values = ["commercial", "service", "office", "kiosk", "retail"]
 mode = "count"
-params = []
 
 [[features]]
 prefix = "building_height"
+source = "imputed_buildings"
 radii = [100]
+column = "building:levels"
+values = []
 mode = "mean"
-params = ["building:levels", "imp"]
+
+[[features]]
+prefix = "streets_nearby"
+source = "crossing_nodes"
+radii  = [20]
+column = "street_count"
+mode   = "sum"
+
+[[features]]
+prefix = "streets_nearby"
+source = "crossing_nodes"
+radii  = [50]
+column = "street_count"
+mode   = "sum"
+
+[[features]]
+prefix = "traffic_light"
+source = "traffic_nodes"
+radii  = [200]
+column = "highway"
+mode   = "count"
+
+[[features]]
+prefix = "traffic_light"
+source = "traffic_nodes"
+radii  = [400]
+column = "highway"
+mode   = "count"
+
+[[features]]
+prefix = "nearby_streets_len"
+source = "edges"
+radii  = [50]
+column = "length"
+values = []
+mode   = "mean"
+
+[[features]]
+prefix = "nearby_maxspeed"
+source = "cars"
+radii  = [50]
+column = "maxspeed"
+values = []
+mode   = "mean"
+
+[[features]]
+prefix = "nearby_num_lanes"
+source = "cars"
+radii  = [50]
+column = "lanes"
+values = []
+mode   = "mean"
+
+[[features]]
+prefix = "nearby_residential_street_len"
+source = "residential_cars"
+radii  = [50]
+column = "length"
+mode   = "sum"
+
+[[features]]
+prefix = "nearby_residential_street_len"
+source = "residential_cars"
+radii  = [150]
+column = "length"
+mode   = "sum"
+
+[[features]]
+prefix = "nearby_pedestrian_street_len"
+source = "pedestrian_edges"
+radii  = [15]
+column = "length"
+mode   = "sum"
+
+[[features]]
+prefix = "nearby_pedestrian_street_len"
+source = "pedestrian_edges"
+radii  = [50]
+column = "length"
+mode   = "sum"
+
+[[features]]
+prefix = "nearby_service_street_len"
+source = "service_cars"
+radii  = [50]
+column = "length"
+mode   = "sum"
+
+[[features]]
+prefix = "nearby_service_street_len"
+source = "service_cars"
+radii  = [150]
+column = "length"
+mode   = "sum"

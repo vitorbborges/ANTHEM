@@ -345,7 +345,7 @@ source_url = "undisclosed"
 [regime]
 description = "Regime of the sample point (static/dynamic) indicating if the subject is stationary or moving"
 type = "str"
-range = [ "dynamic", "static",]
+range = [ "static", "dynamic",]
 created_on = "geolocate.ipynb"
 source = "ANTHEM project"
 source_url = "undisclosed"
@@ -565,7 +565,7 @@ source_url = "https://www.openstreetmap.org/"
 [average_building_height_100]
 description = "Average (low-rank SVD) estimated building height within a 100m radius circle around the point"
 type = "float"
-range = [ 0.14484905670237694, 3.775869537707236,]
+range = [ 0.144759091326593, 3.7758139442192196,]
 created_on = "osmnx_buildings.ipynb"
 source = "OSM"
 source_url = "https://www.openstreetmap.org/"
@@ -607,5 +607,77 @@ description = "Proportion of residential buildings within a 500m radius circle a
 type = "float"
 range = [ 0.0, 0.2458095585215601,]
 created_on = "osmnx_buildings.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[sum_streets_nearby_20]
+description = "Number of nearby streets within 20 meters"
+type = "float"
+range = "Depends on the subject"
+created_on = "osmnx.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[sum_streets_nearby_50]
+description = "Number of nearby streets within 50 meters"
+type = "float"
+range = "Depends on the subject"
+created_on = "osmnx.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[average_nearby_streets_len_50]
+description = "Average length of nearby streets within 50 meters"
+type = "float"
+range = "Depends on the subject"
+created_on = "osmnx.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[sum_nearby_residential_street_len_50]
+description = "Length of nearby residential streets within 50 meters"
+type = "float"
+range = "Depends on the subject"
+created_on = "osmnx.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[sum_nearby_residential_street_len_150]
+description = "Length of nearby residential streets within 150 meters"
+type = "float"
+range = "Depends on the subject"
+created_on = "osmnx.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[sum_nearby_pedestrian_street_len_15]
+description = "Length of nearby pedestrian streets within 15 meters"
+type = "float"
+range = "Depends on the subject"
+created_on = "osmnx.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[sum_nearby_pedestrian_street_len_50]
+description = "Length of nearby pedestrian streets within 50 meters"
+type = "float"
+range = "Depends on the subject"
+created_on = "osmnx.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[sum_nearby_service_street_len_50]
+description = "Length of nearby service streets within 50 meters"
+type = "float"
+range = "Depends on the subject"
+created_on = "osmnx.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[sum_nearby_service_street_len_150]
+description = "Length of nearby service streets within 150 meters"
+type = "float"
+range = "Depends on the subject"
+created_on = "osmnx.ipynb"
 source = "OSM"
 source_url = "https://www.openstreetmap.org/"

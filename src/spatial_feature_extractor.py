@@ -11,7 +11,6 @@ from osmnx.features import features_from_bbox
 from shapely.geometry import LineString, Point
 from shapely.ops import linemerge, substring
 
-from src.feature_building_utils import *
 from src.feature_imputer import FeatureImputer
 
 
@@ -35,80 +34,253 @@ class SpatialFeatureExtractor:
     """
 
     def __init__(self, bbox: tuple) -> None:
+        """
+        Initialize without doing any heavy I/O up front.
+        All sources—whether named strings or arbitrary OSM‐tag dicts—
+        will be loaded lazily via _get_source().
+        """
+        # bounding box for any OSM queries
         self.bbox: tuple = bbox
-        self.osm_layer_cache: Dict[frozenset, gpd.GeoDataFrame] = {}
-        self.geo_sources: Dict[str, gpd.GeoDataFrame] = {}
-        # Graph/network attributes
 
-    #     self._graph = None
-    #     self._graph_nodes: Optional[gpd.GeoDataFrame] = None
-    #     self._graph_edges: Optional[gpd.GeoDataFrame] = None
-    #     self._graph_imputed_edges: Optional[gpd.GeoDataFrame] = None
-    #     self._graph_cars: Optional[gpd.GeoDataFrame] = None
-    #     # Register graph edges and car-only edges for mean calculations
-    #     self.load_mean_source("edges", lambda: self._get_graph_edges())
-    #     self.load_mean_source("cars", lambda: self._get_graph_cars())
+        # unified cache: keys are either:
+        #  - simple strings for named sources ("edges", "cars", "buildings", etc.)
+        #  - frozenset versions of tag‐dicts for arbitrary OSM lookups
+        self._source_cache: Dict[Any, gpd.GeoDataFrame] = {}
 
-    # def _load_graph(self) -> None:
-    #     """
-    #     Load and cache the OSM street network graph, extract nodes and edges,
-    #     process and impute edge attributes, and derive the car-only subset.
-    #     """
-    #     if self._graph is None:
-    #         # Fetch full street network graph
-    #         north, south, east, west = self.bbox
-    #         self._graph = ox.graph_from_bbox(
-    #             north, south, east, west, network_type="all", simplify=False
-    #         )
-    #         # Convert to GeoDataFrames
-    #         nodes, edges = ox.graph_to_gdfs(self._graph)
-    #         # Process original edges for imputation
-    #         edges_orig = edges.copy()
-    #         edges_orig["lanes"] = edges_orig["lanes"].fillna(0)
-    #         edges_orig["oneway"] = edges_orig["oneway"].astype(int)
-    #         edges_orig["reversed"] = edges_orig["reversed"].astype(int)
-    #         edges_orig["maxspeed"] = edges_orig["maxspeed"].astype(float)
-    #         # Enforce single lane on one-way streets
-    #         edges_orig.loc[edges_orig["oneway"] == 1, "lanes"] = 1
-    #         # Set zero lanes to NaN for imputation
-    #         edges_orig.loc[edges_orig["lanes"] == 0, "lanes"] = np.nan
-    #         # Cache nodes and raw edges
-    #         self._graph_nodes = nodes
-    #         self._graph_edges = edges_orig
-    #         # Impute edge attributes using MICE
-    #         imputed = FeatureImputer.impute_edges(edges_orig)
-    #         self._graph_imputed_edges = imputed
-    #         # Derive car-only edges (exclude footway-like types)
-    #         foot_types = [
-    #             "footway",
-    #             "pedestrian",
-    #             "unclassified",
-    #             "steps",
-    #             "corridor",
-    #             "path",
-    #         ]
-    #         mask_foot = imputed["highway"].isin(foot_types)
-    #         self._graph_cars = imputed.loc[~mask_foot].copy()
+        # registry of your three special, named loaders
+        self._named_loaders: Dict[str, Callable[[], gpd.GeoDataFrame]] = {
+            "nodes": self._get_graph_nodes,
+            "edges": self._get_graph_edges,
+            "imputed_edges": self._get_graph_imputed_edges,
+            "cars": self._get_graph_cars,
+            "crossing_nodes": self._get_crossing_nodes,
+            "traffic_nodes": self._get_traffic_nodes,
+            "residential_cars": self._get_residential_cars,
+            "service_cars": self._get_service_cars,
+            "pedestrian_edges": self._get_pedestrian_edges,
+            "imputed_buildings": self._get_imputed_buildings,
+        }
 
-    # def _get_graph_nodes(self) -> gpd.GeoDataFrame:
-    #     if self._graph_nodes is None:
-    #         self._load_graph()
-    #     return self._graph_nodes
+        # placeholders for lazy‐loading the graph & buildings
+        self._graph: Optional[ox.utils_graph.Graph] = None
+        self._graph_nodes: Optional[gpd.GeoDataFrame] = None
+        self._graph_edges: Optional[gpd.GeoDataFrame] = None
+        self._graph_imputed_edges: Optional[gpd.GeoDataFrame] = None
+        self._graph_cars: Optional[gpd.GeoDataFrame] = None
+        self._graph_crossing_nodes: Optional[gpd.GeoDataFrame] = None
+        self._graph_traffic_nodes: Optional[gpd.GeoDataFrame] = None
+        self._graph_residential_cars: Optional[gpd.GeoDataFrame] = None
+        self._graph_service_cars: Optional[gpd.GeoDataFrame] = None
+        self._graph_pedestrian_edges: Optional[gpd.GeoDataFrame] = None
+        self._imputed_buildings: Optional[gpd.GeoDataFrame] = None
 
-    # def _get_graph_edges(self) -> gpd.GeoDataFrame:
-    #     if self._graph_edges is None:
-    #         self._load_graph()
-    #     return self._graph_edges
+    def _get_graph_nodes(self) -> gpd.GeoDataFrame:
+        if self._graph_nodes is None:
+            self._load_graph()
+        return self._graph_nodes
 
-    # def _get_graph_imputed_edges(self) -> gpd.GeoDataFrame:
-    #     if self._graph_imputed_edges is None:
-    #         self._load_graph()
-    #     return self._graph_imputed_edges
+    def _get_graph_edges(self) -> gpd.GeoDataFrame:
+        if self._graph_edges is None:
+            self._load_graph()
+        return self._graph_edges
 
-    # def _get_graph_cars(self) -> gpd.GeoDataFrame:
-    #     if self._graph_cars is None:
-    #         self._load_graph()
-    #     return self._graph_cars
+    def _get_graph_imputed_edges(self) -> gpd.GeoDataFrame:
+        if self._graph_imputed_edges is None:
+            self._load_graph()
+        return self._graph_imputed_edges
+
+    def _get_graph_cars(self) -> gpd.GeoDataFrame:
+        if self._graph_cars is None:
+            self._load_graph()
+        return self._graph_cars
+
+    def _get_crossing_nodes(self) -> gpd.GeoDataFrame:
+        if self._graph_crossing_nodes is None:
+            self._load_graph()
+        return self._graph_crossing_nodes
+
+    def _get_traffic_nodes(self) -> gpd.GeoDataFrame:
+        if self._graph_traffic_nodes is None:
+            self._load_graph()
+        return self._graph_traffic_nodes
+
+    def _get_residential_cars(self) -> gpd.GeoDataFrame:
+        if self._graph_residential_cars is None:
+            self._load_graph()
+        return self._graph_residential_cars
+
+    def _get_service_cars(self) -> gpd.GeoDataFrame:
+        if self._graph_service_cars is None:
+            self._load_graph()
+        return self._graph_service_cars
+
+    def _get_pedestrian_edges(self) -> gpd.GeoDataFrame:
+        if self._graph_pedestrian_edges is None:
+            self._load_graph()
+        return self._graph_pedestrian_edges
+
+    def _get_imputed_buildings(self) -> gpd.GeoDataFrame:
+        if self._imputed_buildings is None:
+            self._load_buildings()
+        return self._imputed_buildings
+
+    def _get_osm_layer(self, tags: Dict[str, Any]) -> gpd.GeoDataFrame:
+        """
+        Fetch and cache an OpenStreetMap layer matching specified tags,
+        using the unified _source_cache.
+
+        Parameters
+        ----------
+        tags : dict[str, Any]
+            OSM feature tags to query (e.g., {'amenity': 'school'}).
+
+        Returns
+        -------
+        gpd.GeoDataFrame
+            GeoDataFrame of OSM features matching `tags`.
+        """
+        # Build a hashable key from the tags dict
+        tagkey = frozenset(
+            (k, tuple(v) if isinstance(v, (list, tuple)) else v)
+            for k, v in tags.items()
+        )
+
+        # If not already loaded, fetch and cache under the unified cache
+        if tagkey not in self._source_cache:
+            self._source_cache[tagkey] = features_from_bbox(self.bbox, tags)
+
+        return self._source_cache[tagkey]
+
+    def _get_source(self, key: Union[str, Dict[str, Any]]) -> gpd.GeoDataFrame:
+        """
+        Retrieve a GeoDataFrame from the unified cache, loading it on first access.
+
+        Parameters
+        ----------
+        key : str or dict
+            - If str: must be one of the named sources in self._named_loaders
+            (e.g. "edges", "cars", "buildings", etc.).
+            - If dict: an OSM‐tag lookup, e.g. {"amenity": "school"}.
+
+        Returns
+        -------
+        gpd.GeoDataFrame
+            The requested GeoDataFrame, either from cache or freshly loaded.
+        """
+        # 1) Named‐source case
+        if isinstance(key, str):
+            if key not in self._named_loaders:
+                raise KeyError(f"Unknown named source: {key!r}")
+            if key not in self._source_cache:
+                # call the loader, cache its result
+                df = self._named_loaders[key]()
+                self._source_cache[key] = df
+            return self._source_cache[key]
+
+        # 2) OSM‐tag lookup case
+        if isinstance(key, dict):
+            # build the same frozenset key as _get_osm_layer
+            tagkey = frozenset(
+                (k, tuple(v) if isinstance(v, (list, tuple)) else v)
+                for k, v in key.items()
+            )
+            if tagkey not in self._source_cache:
+                # delegate to your existing _get_osm_layer
+                df = self._get_osm_layer(key)
+                self._source_cache[tagkey] = df
+            return self._source_cache[tagkey]
+
+        # 3) Anything else is invalid
+        raise TypeError("key must be either a named‐source string or an OSM‐tag dict")
+
+    def _load_buildings(self) -> gpd.GeoDataFrame:
+        """
+        Fetch building footprints from OSM and normalize building levels.
+
+        Returns
+        -------
+        gpd.GeoDataFrame
+            Building footprints with numeric 'building:levels'.
+        """
+        tags = {"building": True}
+        gdf = features_from_bbox(self.bbox, tags)
+        gdf = gdf.replace({"building:levels": {"piano terra": 0}})
+        if "level" in gdf.columns:
+            gdf.loc[gdf["level"] == "-1", "level"] = np.nan
+            gdf["level"] = gdf["level"].astype(float)
+        gdf["building:levels"] = (
+            gdf["building:levels"].astype(float).fillna(gdf.get("level", np.nan))
+        )
+        # Impute missing levels
+        self._imputed_buildings = FeatureImputer.impute_gdf(
+            gdf,
+            exclude=["geometry", "name", "roof:levels", "wikidata", "operator"],
+        )
+        return gdf.drop(columns=["level"], errors="ignore")
+
+    def _load_graph(self) -> None:
+        """
+        Load and cache the OSM street network graph, extract nodes and edges,
+        process and impute edge attributes, and derive the car-only subset.
+        """
+        if self._graph is None:
+            # Fetch full street network graph
+            self._graph = ox.graph_from_bbox(
+                self.bbox, network_type="all", simplify=False
+            )
+            # Convert to GeoDataFrames
+            nodes, edges = ox.graph_to_gdfs(self._graph)
+            # Process original edges for imputation
+            edges_orig = edges.copy()
+            edges_orig["lanes"] = edges_orig["lanes"].fillna(0)
+            edges_orig["oneway"] = edges_orig["oneway"].astype(int)
+            edges_orig["reversed"] = edges_orig["reversed"].astype(int)
+            edges_orig["maxspeed"] = edges_orig["maxspeed"].astype(float)
+            # Enforce single lane on one-way streets
+            edges_orig.loc[edges_orig["oneway"] == 1, "lanes"] = 1
+            # Set zero lanes to NaN for imputation
+            edges_orig.loc[edges_orig["lanes"] == 0, "lanes"] = np.nan
+            # Cache nodes and raw edges
+            self._graph_nodes = nodes
+            self._graph_edges = edges_orig
+            # Impute edge attributes using MICE
+            imputed = FeatureImputer.impute_edges(edges_orig)
+            self._graph_imputed_edges = imputed
+            # Derive car-only edges (exclude footway-like types)
+            foot_types = [
+                "footway",
+                "pedestrian",
+                "unclassified",
+                "steps",
+                "corridor",
+                "path",
+            ]
+            # car‐only edges
+            mask_foot = imputed["highway"].isin(foot_types)
+            self._graph_cars = imputed.loc[~mask_foot].copy()
+
+            # pedestrian‐only edges (footway types)
+            self._graph_pedestrian_edges = imputed.loc[mask_foot].copy()
+
+            # crossing‐only nodes
+            self._graph_crossing_nodes = self._graph_nodes[
+                self._graph_nodes["highway"] == "crossing"
+            ]
+
+            # traffic_signals‐only nodes
+            self._graph_traffic_nodes = self._graph_nodes[
+                self._graph_nodes["highway"] == "traffic_signals"
+            ]
+
+            # residential car‐streets
+            self._graph_residential_cars = self._graph_cars[
+                self._graph_cars["highway"] == "residential"
+            ]
+
+            # service car‐streets
+            self._graph_service_cars = self._graph_cars[
+                self._graph_cars["highway"] == "service"
+            ]
 
     def extract_kml(self, kmz_path: Path) -> gpd.GeoDataFrame:
         """
@@ -223,26 +395,6 @@ class SpatialFeatureExtractor:
             y=lambda d: d.sample_pt.map(lambda p: p.y),
         ).drop(columns=["sample_pt", "geometry"])
 
-    def load_buildings(self) -> gpd.GeoDataFrame:
-        """
-        Fetch building footprints from OSM and normalize building levels.
-
-        Returns
-        -------
-        gpd.GeoDataFrame
-            Building footprints with numeric 'building:levels'.
-        """
-        tags = {"building": True}
-        gdf = features_from_bbox(self.bbox, tags)
-        gdf = gdf.replace({"building:levels": {"piano terra": 0}})
-        if "level" in gdf.columns:
-            gdf.loc[gdf["level"] == "-1", "level"] = np.nan
-            gdf["level"] = gdf["level"].astype(float)
-        gdf["building:levels"] = (
-            gdf["building:levels"].astype(float).fillna(gdf.get("level", np.nan))
-        )
-        return gdf.drop(columns=["level"], errors="ignore")
-
     def get_closest_row(self, gdf: gpd.GeoDataFrame, point: Point) -> gpd.GeoSeries:
         """
         Return the GeoDataFrame row whose geometry is closest to the specified point.
@@ -304,28 +456,6 @@ class SpatialFeatureExtractor:
         p_proj = gpd.GeoSeries([point], crs="EPSG:4326").to_crs("EPSG:3857").iloc[0]
         mask = proj.geometry.distance(p_proj) <= radius_meters
         return gdf.loc[mask.values]
-
-    def _get_osm_layer(self, tags: Dict[str, Any]) -> gpd.GeoDataFrame:
-        """
-        Fetch and cache an OpenStreetMap layer matching specified tags.
-
-        Parameters
-        ----------
-        tags : dict[str, Any]
-            OSM feature tags to query (e.g., {'amenity': 'school'}).
-
-        Returns
-        -------
-        gpd.GeoDataFrame
-            GeoDataFrame of OSM features matching `tags`.
-        """
-        key = frozenset(
-            (k, tuple(v) if isinstance(v, (list, tuple)) else v)
-            for k, v in tags.items()
-        )
-        if key not in self.osm_layer_cache:
-            self.osm_layer_cache[key] = features_from_bbox(self.bbox, tags)
-        return self.osm_layer_cache[key]
 
     def is_close_to(
         self,
@@ -415,7 +545,7 @@ class SpatialFeatureExtractor:
         """
         sub = features
         # ——— Filter by type(s) exactly like the standalone version —————————————
-        if type_column and types is not None:
+        if type_column and types:
             # normalize column(s)
             cols = [type_column] if isinstance(type_column, str) else list(type_column)
             # take types as given
@@ -439,145 +569,6 @@ class SpatialFeatureExtractor:
         p_proj = gpd.GeoSeries([point], crs="EPSG:4326").to_crs("EPSG:3857").iloc[0]
         dists = sub_proj.geometry.distance(p_proj)
         return int((dists <= threshold).sum())
-
-    def add_proximity(
-        self,
-        df: pd.DataFrame,
-        prefix: str,
-        tags: Dict[str, Any],
-        radii: Sequence[float],
-        type_column: Optional[Union[str, Sequence[str]]] = None,
-        types: Optional[Union[str, Sequence[Union[str, Sequence[str]]]]] = None,
-    ) -> pd.DataFrame:
-        """
-        Add binary proximity flags for specified OSM features.
-
-        Parameters
-        ----------
-        df : pd.DataFrame
-            Input DataFrame containing 'x' and 'y' columns in EPSG:4326.
-        prefix : str
-            Prefix for the new proximity columns.
-        tags : dict
-            OSM feature tags for the proximity query.
-        radii : sequence of float
-            Distance thresholds in meters.
-        type_column : str or sequence, optional
-            Feature attribute to filter by before proximity check.
-        types : str or sequence, optional
-            Allowed attribute values for filtering.
-
-        Returns
-        -------
-        pd.DataFrame
-            A new DataFrame with boolean columns 'close2{prefix}_{r}'.
-        """
-        layer = self._get_osm_layer(tags)
-        result = df.copy()
-        for r in radii:
-            col = f"close2{prefix}_{int(r)}"
-            result[col] = result.apply(
-                lambda row: int(
-                    self.is_close_to(layer, Point(row.x, row.y), r, type_column, types)
-                ),
-                axis=1,
-            )
-        return result
-
-    def add_count(
-        self,
-        df: pd.DataFrame,
-        prefix: str,
-        tags: Dict[str, Any],
-        radii: Sequence[float],
-        type_column: Optional[Union[str, Sequence[str]]] = None,
-        types: Optional[Union[str, Sequence[Union[str, Sequence[str]]]]] = None,
-    ) -> pd.DataFrame:
-        """
-        Add integer counts of OSM features near each point in the DataFrame.
-
-        For each radius in `radii`, computes how many geometries tagged by `tags`
-        lie within that distance of the (x, y) coordinate in each row.
-
-        Parameters
-        ----------
-        df : pd.DataFrame
-            Input DataFrame with columns 'x' and 'y' in EPSG:4326.
-        prefix : str
-            Column name prefix (e.g., 'schools').
-        tags : Dict[str, Any]
-            OSM feature tags to query (e.g., {'amenity': 'school'}).
-        radii : Sequence[float]
-            Distances in meters for count buffers.
-        type_column : str or sequence of str, optional
-            Column(s) in OSM layer to filter by before counting.
-        types : str or sequence of str, optional
-            Allowed value(s) corresponding to `type_column` filter.
-
-        Returns
-        -------
-        pd.DataFrame
-            A copy of `df` with new integer columns named
-            'num_{prefix}_{radius}' for each radius.
-        """
-        layer = self._get_osm_layer(tags)
-        result = df.copy()
-        for r in radii:
-            col = f"num_{prefix}_{int(r)}"
-            result[col] = result.apply(
-                lambda row: count_nearby(
-                    layer, Point(row.x, row.y), r, type_column, types
-                ),
-                axis=1,
-            ).astype(int)
-        return result
-
-    def add_proportion(
-        self,
-        df: pd.DataFrame,
-        prefix: str,
-        tags: Dict[str, Any],
-        radii: Sequence[float],
-        type_column: Optional[Union[str, Sequence[str]]] = None,
-        types: Optional[Union[str, Sequence[Union[str, Sequence[str]]]]] = None,
-    ) -> pd.DataFrame:
-        """
-        Add fractional land-cover proportion of OSM features within each radius.
-
-        For each radius, calculates the ratio of area covered by features tagged
-        by `tags` to the circular buffer area around each (x, y) point.
-
-        Parameters
-        ----------
-        df : pd.DataFrame
-            Input DataFrame with 'x' and 'y' in EPSG:4326.
-        prefix : str
-            Prefix for new proportion columns.
-        tags : Dict[str, Any]
-            OSM feature tags to query for land-cover.
-        radii : Sequence[float]
-            Buffer distances in meters.
-        type_column : str or sequence of str, optional
-            Feature attribute to filter by before proportion calculation.
-        types : str or sequence of str, optional
-            Allowed values for the filter column(s).
-
-        Returns
-        -------
-        pd.DataFrame
-            Copy of `df` with new float columns 'proportion_{prefix}_{radius}'.
-        """
-        layer = self._get_osm_layer(tags)
-        result = df.copy()
-        for r in radii:
-            col = f"proportion_{prefix}_{int(r)}"
-            result[col] = result.apply(
-                lambda row: land_cover_proportion(
-                    layer, Point(row.x, row.y), r, type_column, types
-                ),
-                axis=1,
-            )
-        return result
 
     def land_cover_proportion(
         self,
@@ -637,77 +628,107 @@ class SpatialFeatureExtractor:
 
         return inter_area / buffer_area if buffer_area > 0 else 0.0
 
+    def add_proximity(
+        self,
+        df: pd.DataFrame,
+        prefix: str,
+        source: Union[str, Dict[str, Any]],
+        radii: Sequence[float],
+        column: Optional[Union[str, Sequence[str]]] = None,
+        values: Optional[Union[str, Sequence[Union[str, Sequence[str]]]]] = None,
+    ) -> pd.DataFrame:
+        layer = self._get_source(source)
+        result = df.copy()
+        for r in radii:
+            col = f"close2{prefix}_{int(r)}"
+            result[col] = result.apply(
+                lambda row: int(
+                    self.is_close_to(layer, Point(row.x, row.y), r, column, values)
+                ),
+                axis=1,
+            )
+        return result
+
+    def add_count(
+        self,
+        df: pd.DataFrame,
+        prefix: str,
+        source: Union[str, Dict[str, Any]],
+        radii: Sequence[float],
+        column: Optional[Union[str, Sequence[str]]] = None,
+        values: Optional[Union[str, Sequence[Union[str, Sequence[str]]]]] = None,
+    ) -> pd.DataFrame:
+        layer = self._get_source(source)
+        result = df.copy()
+        for r in radii:
+            col = f"num_{prefix}_{int(r)}"
+            result[col] = result.apply(
+                lambda row: self.count_nearby(
+                    layer, Point(row.x, row.y), r, column, values
+                ),
+                axis=1,
+            ).astype(int)
+        return result
+
+    def add_proportion(
+        self,
+        df: pd.DataFrame,
+        prefix: str,
+        source: Union[str, Dict[str, Any]],
+        radii: Sequence[float],
+        column: Optional[Union[str, Sequence[str]]] = None,
+        values: Optional[Union[str, Sequence[Union[str, Sequence[str]]]]] = None,
+    ) -> pd.DataFrame:
+        layer = self._get_source(source)
+        result = df.copy()
+        for r in radii:
+            col = f"proportion_{prefix}_{int(r)}"
+            result[col] = result.apply(
+                lambda row: self.land_cover_proportion(
+                    layer, Point(row.x, row.y), r, column, values
+                ),
+                axis=1,
+            )
+        return result
+
+    def add_sum(
+        self,
+        df: pd.DataFrame,
+        prefix: str,
+        source: str,  # now ALWAYS a string key into _named_loaders
+        radii: Sequence[float],
+        column: str,
+        _values=None,  # unused
+    ) -> pd.DataFrame:
+        layer = self._get_source(source).to_crs(epsg=3857)
+        pts = gpd.GeoSeries(
+            [Point(x, y) for x, y in zip(df.x, df.y)], index=df.index, crs="EPSG:4326"
+        ).to_crs(epsg=3857)
+        out = df.copy()
+        for r in radii:
+            col = f"sum_{prefix}_{int(r)}"
+            out[col] = [
+                layer.loc[layer.geometry.distance(pt) <= r, column].sum() for pt in pts
+            ]
+        return out
+
     def add_mean(
         self,
         df: pd.DataFrame,
         prefix: str,
-        source_key: str,
+        source: str,  # string key only
         radii: Sequence[float],
-        value_column: str,
+        column: str,
+        _values=None,  # unused
     ) -> pd.DataFrame:
-        """
-        Add spatially-averaged values of a registered geo-source within buffers.
-
-        For each radius, computes the mean of `value_column` from the layer
-        registered under `source_key` within `r` meters of each point.
-
-        Parameters
-        ----------
-        df : pd.DataFrame
-            Input DataFrame with 'x' and 'y' in EPSG:4326.
-        prefix : str
-            Prefix for new average columns.
-        source_key : str
-            Key under which a GeoDataFrame is registered via `load_mean_source`.
-        radii : Sequence[float]
-            Buffer distances in meters for mean calculation.
-        value_column : str
-            Numeric column in the source GeoDataFrame to average.
-
-        Returns
-        -------
-        pd.DataFrame
-            Copy of `df` with new float columns 'average_{prefix}_{radius}'.
-        """
-        # 1) grab and reproject the layer
-
-        layer = self.geo_sources[source_key]
-        layer_proj = layer.to_crs(epsg=3857)
-
-        # 2) make a GeoSeries of your sample points and reproject them
+        layer = self._get_source(source).to_crs(epsg=3857)
         pts = gpd.GeoSeries(
-            [Point(xy) for xy in zip(df.x, df.y)], index=df.index, crs="EPSG:4326"
+            [Point(x, y) for x, y in zip(df.x, df.y)], index=df.index, crs="EPSG:4326"
         ).to_crs(epsg=3857)
-
-        result = df.copy()
+        out = df.copy()
         for r in radii:
             col = f"average_{prefix}_{int(r)}"
-            means = []
-            for pt in pts:
-                # compute distances in metres
-                dists = layer_proj.geometry.distance(pt)
-                # take the mean of all features within r metres
-                means.append(layer_proj.loc[dists <= r, value_column].mean())
-            result[col] = means
-
-        return result
-
-    def load_mean_source(
-        self, key: str, loader: Callable[[], gpd.GeoDataFrame]
-    ) -> None:
-        """
-        Register a GeoDataFrame for subsequent spatial averaging operations.
-
-        Parameters
-        ----------
-        key : str
-            Identifier for the geo-source.
-        loader : callable
-            Function returning a GeoDataFrame when called.
-
-        Returns
-        -------
-        None
-            Side-effect: stores the loaded GeoDataFrame under `self.geo_sources[key]`.
-        """
-        self.geo_sources[key] = loader()
+            out[col] = [
+                layer.loc[layer.geometry.distance(pt) <= r, column].mean() for pt in pts
+            ]
+        return out

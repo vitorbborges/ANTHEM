@@ -26,14 +26,6 @@ class ProcessSubjectPipeline:
     def __init__(self, bbox: tuple):
         self.bbox = bbox
         self.extractor = SpatialFeatureExtractor(bbox)
-        self.extractor.load_mean_source("bld", self.extractor.load_buildings)
-        self.extractor.load_mean_source(
-            "imp",
-            lambda: FeatureImputer.impute_gdf(
-                self.extractor.geo_sources["bld"],
-                exclude=["geometry", "name", "roof:levels", "wikidata", "operator"],
-            ),
-        )
         self.specs_file = TOML_PATH
 
     def run(self, subject_id: int) -> pd.DataFrame:
@@ -49,34 +41,24 @@ class ProcessSubjectPipeline:
         df.index = base + pd.to_timedelta(df.index.astype(str))
 
         entries = toml.load(self.specs_file).get("features", [])
-        specs = [
-            (
-                e["prefix"],
-                e.get("tags"),
-                e.get("radii", []),
-                e.get("type_column"),
-                e.get("type_values"),
-                e["mode"],
-                *e.get("params", []),
-            )
-            for e in entries
-        ]
+        feature_bar = tqdm(entries, desc=f"Subject {subject_id}", unit="feature")
 
-        feature_bar = tqdm(specs, desc=f"Subject {subject_id}", unit="feature")
-        for prefix, tags, radii, tc, tv, mode, *params in feature_bar:
+        for feature in feature_bar:
+            prefix = feature["prefix"]
+            mode = feature["mode"]
+            source = feature["source"]
+            radii = feature.get("radii", [])
+            column = feature.get("column")
+            values = feature.get("values", [])
+
             feature_bar.set_description(f"Subject {subject_id} | {prefix}")
-            if prefix == "green":
-                pass
-            if mode == "proximity":
-                df = self.extractor.add_proximity(df, prefix, tags, radii, tc, tv)
-            elif mode == "count":
-                df = self.extractor.add_count(df, prefix, tags, radii, tc, tv)
-            elif mode == "proportion":
-                df = self.extractor.add_proportion(df, prefix, tags, radii, tc, tv)
-            elif mode == "mean":
-                df = self.extractor.add_mean(df, prefix, params[1], radii, params[0])
-            else:
-                raise ValueError(f"Unknown mode {mode}")
+
+            method_name = f"add_{mode}"
+            if not hasattr(self.extractor, method_name):
+                raise ValueError(f"Unknown mode: {mode!r}")
+
+            fn = getattr(self.extractor, method_name)
+            df = fn(df, prefix, source, radii, column, values)
 
         wdirs = list(raw_dir.glob("RW_*"))
         if wdirs:
