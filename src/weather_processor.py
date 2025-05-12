@@ -1,9 +1,10 @@
-from pathlib import Path
 import os
-import pandas as pd
 from io import StringIO
-from unidecode import unidecode
+from pathlib import Path
+
+import pandas as pd
 from scipy.interpolate import PchipInterpolator
+from unidecode import unidecode
 
 
 # --------------------------------------------------
@@ -43,7 +44,7 @@ class WeatherProcessor:
     @staticmethod
     def interpolate(df: pd.DataFrame) -> pd.DataFrame:
         t0 = df.index.view("int64") / 1e9
-        t1 = pd.date_range(df.index[0], df.index[-1], freq="1S")
+        t1 = pd.date_range(df.index[0], df.index[-1], freq="1s")
         t1s = t1.view("int64") / 1e9
         data = {
             col: PchipInterpolator(t0[df[col].notna()], df[col][df[col].notna()])(t1s)
