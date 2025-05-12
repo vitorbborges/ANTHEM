@@ -16,7 +16,8 @@ from src.weather_processor import WeatherProcessor
 
 # GLOBAL CONSTANTS
 TOML_PATH = Path("config/feature_specs.toml")
-BBOX = (9.2257, 45.47162, 9.23768, 45.48537)
+WEST, SOUTH, EAST, NORTH = 9.2257, 45.47162, 9.23768, 45.48537
+BBOX = (WEST, SOUTH, EAST, NORTH)  # Bounding box for the area of interest
 
 
 # --------------------------------------------------
@@ -32,6 +33,7 @@ class ProcessSubjectPipeline:
         raw_dir = Path("data/raw_data")
         out_dir = Path("data/processed_data")
         data = load_subject(subject_id)
+        data["subject_id"] = subject_id
         kml = self.extractor.extract_kml(raw_dir / "route.kmz")
         segments = self.extractor.build_segments(kml)
         static_df = self.extractor.extract_static(data, kml)
