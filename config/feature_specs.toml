@@ -1,0 +1,335 @@
+[[features]]
+prefix = "water"
+source = { natural = ["water", "wetland"], waterway = true, water = true }
+radii = [25, 100]
+mode = "proximity"
+
+[[features]]
+prefix = "smoking_shop"
+source = { shop = true }
+radii = [75]
+column = "shop"
+values = ["kiosk", "tobacco", "cannabis", "alcohol", "coffee"]
+mode = "proximity"
+
+[[features]]
+prefix = "chimney"
+source = { man_made = true }
+radii = [150]
+column = "man_made"
+values = ["chimney"]
+mode = "proximity"
+
+[[features]]
+prefix = "water_tap"
+source = { man_made = true }
+radii = [75]
+column = "man_made"
+values = ["water_tap"]
+mode = "proximity"
+
+[[features]]
+prefix = "public_transport"
+source = { public_transport = true }
+radii = [15]
+mode = "proximity"
+
+[[features]]
+prefix = "public_transport"
+source = { public_transport = true }
+radii = [50, 100]
+mode = "count"
+
+[[features]]
+prefix = "industry"
+source = { landuse = true }
+radii = [400]
+column = "landuse"
+values = ["industrial"]
+mode = "proximity"
+
+[[features]]
+prefix = "residential"
+source = { landuse = true }
+radii = [10]
+column = "landuse"
+values = ["residential"]
+mode = "proximity"
+
+[[features]]
+prefix = "residential"
+source = { landuse = true }
+radii = [400]
+column = "landuse"
+values = ["residential"]
+mode = "proportion"
+
+[[features]]
+prefix = "railway"
+source = { landuse = true }
+radii = [100]
+column = "landuse"
+values = ["railway"]
+mode = "proximity"
+
+[[features]]
+prefix = "grass"
+source = { landuse = true }
+radii = [15, 100]
+column = "landuse"
+values = ["grass"]
+mode = "proximity"
+
+[[features]]
+prefix = "construction"
+source = { landuse = true }
+radii = [50]
+column = "landuse"
+values = ["construction"]
+mode = "proximity"
+
+[[features]]
+prefix = "trees"
+source = { natural = true }
+radii = [50, 500]
+column = "natural"
+values = ["tree", "tree_stump"]
+mode = "count"
+
+[[features]]
+prefix = "woods"
+source = { natural = true }
+radii = [50, 200]
+column = "natural"
+values = ["wood", "shrub", "scrub"]
+mode = "proximity"
+
+[[features]]
+prefix = "grassland"
+source = { natural = true }
+radii = [200]
+column = "natural"
+values = ["grassland"]
+mode = "proximity"
+
+[[features]]
+prefix = "park"
+source = { leisure = ["park", "garden"] }
+radii = [5, 25]
+column = "leisure"
+values = ["park"]
+mode = "proximity"
+
+[[features]]
+prefix = "garden"
+source = { leisure = ["park", "garden"] }
+radii = [25]
+column = "leisure"
+values = ["garden"]
+mode = "proximity"
+
+[[features]]
+prefix = "green"
+source = { leisure = ["park", "garden"] }
+radii = [200, 500, 1000]
+column = "leisure"
+values = ["park", "garden"]
+mode = "count"
+
+[[features]]
+prefix = "green"
+source = { leisure = ["park", "garden"] }
+radii = [50, 100, 500]
+column = "leisure"
+values = ["park", "garden"]
+mode = "proportion"
+
+[[features]]
+prefix = "smoking_amenity"
+source = { amenity = true }
+radii = [30]
+column = ["outdoor_seating", "smoking"]
+values = [["yes"], ["yes", "outside"]]
+mode = "proximity"
+
+[[features]]
+prefix = "cigarette_disposal"
+source = { amenity = true }
+radii = [50]
+column = "waste"
+values = ["cigarettes;mixed", "cigarettes"]
+mode = "proximity"
+
+[[features]]
+prefix = "waste_disposal"
+source = { amenity = true }
+radii = [25]
+column = "amenity"
+values = ["waste_basket", "recycling", "waste_disposal"]
+mode = "proximity"
+
+[[features]]
+prefix = "parking_space"
+source = { amenity = true }
+radii = [30]
+column = ["amenity", "parking"]
+values = [["parking", "parking_space", "parking_entrance", "motorcycle_parking"], []]
+mode = "proximity"
+
+[[features]]
+prefix = "fuel_station"
+source = { amenity = true }
+radii = [40]
+column = "amenity"
+values = ["fuel"]
+mode = "proximity"
+
+[[features]]
+prefix = "drinking_water"
+source = { amenity = true }
+radii = [30]
+column = "amenity"
+values = ["drinking_water", "fountain"]
+mode = "proximity"
+
+[[features]]
+prefix = "industrial_building"
+source = { building = true }
+radii = [15, 100]
+column = "building"
+values = ["industrial"]
+mode = "proximity"
+
+[[features]]
+prefix = "residential_buildings"
+source = { building = true }
+radii = [200]
+column = "building"
+values = ["residential", "apartments", "house", "dormitory", "semidetached_house"]
+mode = "count"
+
+[[features]]
+prefix = "residential_buildings"
+source = { building = true }
+radii = [500]
+column = "building"
+values = ["residential", "apartments", "house", "dormitory", "semidetached_house"]
+mode = "proportion"
+
+[[features]]
+prefix = "commercial_building"
+source = { building = true }
+radii = [25]
+column = "building"
+values = ["commercial"]
+mode = "proximity"
+
+[[features]]
+prefix = "commercial_buildings"
+source = { building = true }
+radii = [200]
+column = "building"
+values = ["commercial", "service", "office", "kiosk", "retail"]
+mode = "count"
+
+[[features]]
+prefix = "building_height"
+source = "imputed_buildings"
+radii = [100]
+column = "building:levels"
+values = []
+mode = "mean"
+
+[[features]]
+prefix = "streets_nearby"
+source = "crossing_nodes"
+radii  = [20]
+column = "street_count"
+mode   = "sum"
+
+[[features]]
+prefix = "streets_nearby"
+source = "crossing_nodes"
+radii  = [50]
+column = "street_count"
+mode   = "sum"
+
+[[features]]
+prefix = "traffic_light"
+source = "traffic_nodes"
+radii  = [200]
+column = "highway"
+mode   = "count"
+
+[[features]]
+prefix = "traffic_light"
+source = "traffic_nodes"
+radii  = [400]
+column = "highway"
+mode   = "count"
+
+[[features]]
+prefix = "nearby_streets_len"
+source = "edges"
+radii  = [50]
+column = "length"
+values = []
+mode   = "mean"
+
+[[features]]
+prefix = "nearby_maxspeed"
+source = "cars"
+radii  = [50]
+column = "maxspeed"
+values = []
+mode   = "mean"
+
+[[features]]
+prefix = "nearby_num_lanes"
+source = "cars"
+radii  = [50]
+column = "lanes"
+values = []
+mode   = "mean"
+
+[[features]]
+prefix = "nearby_residential_street_len"
+source = "residential_cars"
+radii  = [50]
+column = "length"
+mode   = "sum"
+
+[[features]]
+prefix = "nearby_residential_street_len"
+source = "residential_cars"
+radii  = [150]
+column = "length"
+mode   = "sum"
+
+[[features]]
+prefix = "nearby_pedestrian_street_len"
+source = "pedestrian_edges"
+radii  = [15]
+column = "length"
+mode   = "sum"
+
+[[features]]
+prefix = "nearby_pedestrian_street_len"
+source = "pedestrian_edges"
+radii  = [50]
+column = "length"
+mode   = "sum"
+
+[[features]]
+prefix = "nearby_service_street_len"
+source = "service_cars"
+radii  = [50]
+column = "length"
+mode   = "sum"
+
+[[features]]
+prefix = "nearby_service_street_len"
+source = "service_cars"
+radii  = [150]
+column = "length"
+mode   = "sum"

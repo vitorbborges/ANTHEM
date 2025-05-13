@@ -3,8 +3,8 @@ subjects   = 1:20;
 pollutants = {'CO2','P','PM1','PM10','PM25','RH','T','VOC'};
 
 % Base directories
-input_base  = '../data/raw_data/';
-output_base = '../data/adapted_raw_data/';
+input_base  = 'raw_data/';
+output_base = 'adapted_raw_data/';
 
 for subj = subjects
     subj_str         = sprintf('S%02d', subj);    % S01, S02, …

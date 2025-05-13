@@ -1,3 +1,267 @@
+[close2smoking_shop_75]
+description = "'Dummy' variable indicating whether the point is less than 75m away from a shop where smoking is usually allowed."
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_shops.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2public_transport_15]
+description = "'Dummy' variable indicating whether the point is less than 15m away from a public transport infrastructure."
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_public_transport.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[num_public_transport_50]
+description = "Number of public transport within 50m of the point"
+type = "integer"
+range = [ 0, 13,]
+created_on = "osmnx_public_transport.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[num_public_transport_100]
+description = "Number of public transport within 100m of the point"
+type = "integer"
+range = [ 0, 27,]
+created_on = "osmnx_public_transport.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2industry_400]
+description = "'Dummy' variable indicating wheter the point is less than 400m away from an industrial area"
+type = "integer"
+range = [ 0, 1,]
+created_on = "osmnx_landuse.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2residential_200]
+description = "'Dummy' variable indicating wheter the point is less than 200m away from a residential area"
+type = "integer"
+range = [ 0, 1,]
+created_on = "osmnx_landuse.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[proportion_residential_400]
+description = "Proportion of residential land area within a 400m radius circle around the point"
+type = "float"
+range = [ "np.float64(0.0)", "np.float64(0.8641728225051793)",]
+created_on = "osmnx_landuse.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2railway_100]
+description = "'Dummy' variable indicating wheter the point is less than 100m away from a railway"
+type = "integer"
+range = [ 0, 1,]
+created_on = "osmnx_landuse.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2grass_15]
+description = "'Dummy' variable indicating wheter the point is less than 15m away from a grass area"
+type = "integer"
+range = [ 0, 1,]
+created_on = "osmnx_landuse.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2grass_100]
+description = "'Dummy' variable indicating wheter the point is less than 100m away from a grass area"
+type = "integer"
+range = [ 0, 1,]
+created_on = "osmnx_landuse.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2construction_50]
+description = "'Dummy' variable indicating wheter the point is less than 50m away from a construction area"
+type = "integer"
+range = [ 0, 1,]
+created_on = "osmnx_landuse.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2residential_10]
+description = "'Dummy' variable indicating wheter the point is less than 10m away from a residential area"
+type = "integer"
+range = [ 0, 1,]
+created_on = "osmnx_landuse.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2park_5]
+description = "'Dummy' variable indicating whether the point is less than 5m away from a park or not"
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_parks.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2park_25]
+description = "'Dummy' variable indicating whether the point is less than 25m away from a park or not"
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_parks.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2garden_25]
+description = "'Dummy' variable indicating whether the point is less than 25m away from a garden or not"
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_parks.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[num_green_200]
+description = "Number of green areas within 200m from the point"
+type = "integer"
+range = [ 0, 8,]
+created_on = "osmnx_parks.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[num_green_500]
+description = "Number of green areas within 500m from the point"
+type = "integer"
+range = [ 4, 14,]
+created_on = "osmnx_parks.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[num_green_1000]
+description = "Number of green areas within 1000m from the point"
+type = "integer"
+range = [ 32, 10,]
+created_on = "osmnx_parks.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[proportion_green_50]
+description = "Proportion of green land area within a 50m radius circle around the point"
+type = "float"
+range = [ 0.0, 0.373467498273193,]
+created_on = "osmnx_parks.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[proportion_green_100]
+description = "Proportion of green land area within a 100m radius circle around the point"
+type = "float"
+range = [ 0.0, 0.4003214374464804,]
+created_on = "osmnx_parks.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[proportion_green_500]
+description = "Proportion of green land area within a 500m radius circle around the point"
+type = "float"
+range = [ 0.12882339259190778, 0.007049415111455461,]
+created_on = "osmnx_parks.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[num_trees_50]
+description = "Number of trees within 50m of the point"
+type = "integer"
+range = [ 0, 27,]
+created_on = "osmnx_natural.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[num_trees_500]
+description = "Number of trees within 500m of the point"
+type = "integer"
+range = [ 18, 805,]
+created_on = "osmnx_natural.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2woods_50]
+description = "'Dummy' variable indicating whether the point is less than 50m away from the woods or not"
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_natural.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2woods_200]
+description = "'Dummy' variable indicating whether the point is less than 200m away from the woods or not"
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_natural.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2grassland_200]
+description = "'Dummy' variable indicating whether the point is less than 200m away from the grassland or not"
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_natural.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2smoking_amenity_30]
+description = "'Dummy' variable indicating whether the point is less than 30m away from an amenity where smoking is usually allowed."
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_amenity.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2cigarette_disposal_50]
+description = "'Dummy' variable indicating whether the point is less than 50m away from a waste basket where cigarettes are usually disposed of."
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_amenity.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2waste_disposal_25]
+description = "'Dummy' variable indicating whether the point is less than 25m away from a waste basket."
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_amenity.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2parking_space_30]
+description = "'Dummy' variable indicating whether the point is less than 30m away from a parking space."
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_amenity.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2fuel_station_40]
+description = "'Dummy' variable indicating whether the point is less than 40m away from a fuel station."
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_amenity.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2drinking_water_20]
+description = "'Dummy' variable indicating whether the point is less than 20m away from a drinking water source."
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_amenity.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2drinking_water_30]
+description = "'Dummy' variable indicating whether the point is less than 30m away from a drinking water source."
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_amenity.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
 [CO2]
 description = "Carbon dioxide (CO₂) concentration"
 type = "float"
@@ -81,7 +345,7 @@ source_url = "undisclosed"
 [regime]
 description = "Regime of the sample point (static/dynamic) indicating if the subject is stationary or moving"
 type = "str"
-range = [ "dynamic", "static",]
+range = [ "static", "dynamic",]
 created_on = "geolocate.ipynb"
 source = "ANTHEM project"
 source_url = "undisclosed"
@@ -102,359 +366,51 @@ created_on = "geolocate.ipynb"
 source = "ANTHEM project"
 source_url = "undisclosed"
 
-[close2water_25]
-description = "'Dummy' variable indicating wheter the point is less than 25m away from a water body"
-type = "integer"
-range = [ 0, 1,]
-created_on = "osmnx_water.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
+[velocita_vento_massimo]
+description = "Estimated maximum wind speed in m/s"
+type = "float"
+range = [ 0, 2,]
+created_on = "weather_data.ipynb"
+source = "ARPA Lombardia"
+source_url = "https://www.arpalombardia.it/temi-ambientali/meteo-e-clima/form-richiesta-dati/"
 
-[close2water_100]
-description = "'Dummy' variable indicating wheter the point is less than 100m away from a water body"
-type = "integer"
-range = [ 0, 1,]
-created_on = "osmnx_water.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
+[direzione_vento_massimo]
+description = "Estimated wind direction at maximum wind speed in degrees from North"
+type = "float"
+range = [ 145, 213,]
+created_on = "weather_data.ipynb"
+source = "ARPA Lombardia"
+source_url = "https://www.arpalombardia.it/temi-ambientali/meteo-e-clima/form-richiesta-dati/"
 
-[close2industry_400]
-description = "'Dummy' variable indicating wheter the point is less than 400m away from an industrial area"
-type = "integer"
+[velocita_vento_medio]
+description = "Estimated average wind speed in m/s"
+type = "float"
 range = [ 0, 1,]
-created_on = "osmnx_landuse.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
+created_on = "weather_data.ipynb"
+source = "ARPA Lombardia"
 
-[close2residential_10]
-description = "'Dummy' variable indicating wheter the point is less than 10m away from a residential area"
-type = "integer"
+[radiazione_globale_medio]
+description = "Estimated average global solar radiation in W/m2"
+type = "float"
+range = [ 251, 20,]
+created_on = "weather_data.ipynb"
+source = "ARPA Lombardia"
+
+[precipitazione_valore_cumulato]
+description = "Estimated Accumulated precipitation value in mm"
+type = "float"
 range = [ 0,]
-created_on = "osmnx_landuse.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
+created_on = "weather_data.ipynb"
+source = "ARPA Lombardia"
 
-[proportion_residential_400]
-description = "Proportion of residential land area within a 400m radius circle around the point"
+[direzione_vento_medio]
+description = "Estimated average wind direction in degrees from North"
 type = "float"
-range = [ "np.float64(0.0)", "np.float64(0.8641728225051793)",]
-created_on = "osmnx_landuse.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
+range = [ 0, 182,]
+created_on = "weather_data.ipynb"
+source = "ARPA Lombardia"
 
-[close2railway_100]
-description = "'Dummy' variable indicating wheter the point is less than 100m away from a railway"
-type = "integer"
-range = [ 0, 1,]
-created_on = "osmnx_landuse.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2grass_15]
-description = "'Dummy' variable indicating wheter the point is less than 15m away from a grass area"
-type = "integer"
-range = [ 0, 1,]
-created_on = "osmnx_landuse.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2grass_100]
-description = "'Dummy' variable indicating wheter the point is less than 100m away from a grass area"
-type = "integer"
-range = [ 0, 1,]
-created_on = "osmnx_landuse.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2construction_50]
-description = "'Dummy' variable indicating wheter the point is less than 50m away from a construction area"
-type = "integer"
-range = [ 0, 1,]
-created_on = "osmnx_landuse.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[num_trees_50]
-description = "Number of trees within 50m of the point"
-type = "integer"
-range = [ 0, 27,]
-created_on = "osmnx_natural.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[num_trees_500]
-description = "Number of trees within 500m of the point"
-type = "integer"
-range = [ 18, 805,]
-created_on = "osmnx_natural.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2woods_50]
-description = "'Dummy' variable indicating whether the point is less than 50m away from the woods or not"
-type = "boolean"
-range = [ 0, 1,]
-created_on = "osmnx_natural.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2woods_200]
-description = "'Dummy' variable indicating whether the point is less than 200m away from the woods or not"
-type = "boolean"
-range = [ 0, 1,]
-created_on = "osmnx_natural.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2grassland_200]
-description = "'Dummy' variable indicating whether the point is less than 200m away from the grassland or not"
-type = "boolean"
-range = [ 0, 1,]
-created_on = "osmnx_natural.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[inside_green]
-description = "'Dummy' variable indicating whether the point is inside a green area or not"
-type = "boolean"
-range = [ 0, 1,]
-created_on = "osmnx_parks.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2park_25]
-description = "'Dummy' variable indicating whether the point is less than 25m away from a park or not"
-type = "boolean"
-range = [ 0, 1,]
-created_on = "osmnx_parks.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2garden_25]
-description = "'Dummy' variable indicating whether the point is less than 25m away from a garden or not"
-type = "boolean"
-range = [ 0, 1,]
-created_on = "osmnx_parks.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[num_green_200]
-description = "Number of green areas within 200m from the point"
-type = "integer"
-range = [ 0, 8,]
-created_on = "osmnx_parks.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[num_green_500]
-description = "Number of green areas within 500m from the point"
-type = "integer"
-range = [ 4, 14,]
-created_on = "osmnx_parks.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[num_green_1000]
-description = "Number of green areas within 1000m from the point"
-type = "integer"
-range = [ 32, 10,]
-created_on = "osmnx_parks.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[proportion_green_50]
-description = "Proportion of green land area within a 50m radius circle around the point"
-type = "float"
-range = [ 0.0, 0.373467498273193,]
-created_on = "osmnx_parks.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[proportion_green_100]
-description = "Proportion of green land area within a 100m radius circle around the point"
-type = "float"
-range = [ 0.0, 0.4003214374464804,]
-created_on = "osmnx_parks.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[proportion_green_500]
-description = "Proportion of green land area within a 500m radius circle around the point"
-type = "float"
-range = [ 0.12882339259190778, 0.007049415111455461,]
-created_on = "osmnx_parks.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2industrial_building_15]
-description = "'Dummy' variable indicating whether the point is less than 15m away from an industrial building"
-type = "boolean"
-range = [ 0, 1,]
-created_on = "osmnx_buildings.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2industrial_building_100]
-description = "'Dummy' variable indicating whether the point is less than 100m away from an industrial building"
-type = "boolean"
-range = [ 0, 1,]
-created_on = "osmnx_buildings.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[average_building_height_100]
-description = "Average (low-rank SVD) estimated building height within a 100m radius circle around the point"
-type = "float"
-range = [ 0.14472880890883866, 3.776019646800925,]
-created_on = "osmnx_buildings.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[num_residential_buildings_200]
-description = "Number of residential buildings within a 200m radius circle around the point"
-type = "integer"
-range = [ 0, 107,]
-created_on = "osmnx_buildings.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[proportion_residential_buildings_300]
-description = "Proportion of residential buildings within a 500m radius circle around the point"
-type = "float"
-range = [ 0.0, 0.2458095585215601,]
-created_on = "osmnx_buildings.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2commercial_building_25]
-description = "'Dummy' variable indicating whether the point is less than 25m away from a commercial building"
-type = "boolean"
-range = [ 0, 1,]
-created_on = "osmnx_buildings.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[num_commercial_buildings_200]
-description = "Number of commercial buildings within a 200m radius circle around the point"
-type = "integer"
-range = [ 0, 9,]
-created_on = "osmnx_buildings.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2chimney_50]
-description = "'Dummy' variable indicating whether the point is less than 50m away from a chimney"
-type = "boolean"
-range = [ 0,]
-created_on = "osmnx_man_made.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2water_tap_50]
-description = "'Dummy' variable indicating whether the point is less than 50m away from a water_tap"
-type = "boolean"
-range = [ 0, 1,]
-created_on = "osmnx_man_made.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2chimney_150]
-description = "'Dummy' variable indicating whether the point is less than 150m away from a chimney"
-type = "boolean"
-range = [ 0, 1,]
-created_on = "osmnx_man_made.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2water_tap_75]
-description = "'Dummy' variable indicating whether the point is less than 75m away from a water_tap"
-type = "boolean"
-range = [ 0, 1,]
-created_on = "osmnx_man_made.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2smoking_shop_75m]
-description = "'Dummy' variable indicating whether the point is less than 75m away from a shop where smoking is usually allowed."
-type = "boolean"
-range = [ 0, 1,]
-created_on = "osmnx_shops.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2public_transport_15m]
-description = "'Dummy' variable indicating whether the point is less than 15m away from a public transport infrastructure."
-type = "boolean"
-range = [ 0, 1,]
-created_on = "osmnx_public_transport.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[num_public_transport_50]
-description = "Number of public transport within 50m of the point"
-type = "integer"
-range = [ 0, 13,]
-created_on = "osmnx_public_transport.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[num_public_transport_100]
-description = "Number of public transport within 100m of the point"
-type = "integer"
-range = [ 0, 27,]
-created_on = "osmnx_public_transport.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2smoking_amenity_30]
-description = "'Dummy' variable indicating whether the point is less than 30m away from an amenity where smoking is usually allowed."
-type = "boolean"
-range = [ 0, 1,]
-created_on = "osmnx_amenity.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2cigarette_disposal_50]
-description = "'Dummy' variable indicating whether the point is less than 50m away from a waste basket where cigarettes are usually disposed of."
-type = "boolean"
-range = [ 0, 1,]
-created_on = "osmnx_amenity.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2waste_disposal_25]
-description = "'Dummy' variable indicating whether the point is less than 25m away from a waste basket."
-type = "boolean"
-range = [ 0, 1,]
-created_on = "osmnx_amenity.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2parking_30]
-description = "'Dummy' variable indicating whether the point is less than 30m away from a parking space."
-type = "boolean"
-range = [ 0, 1,]
-created_on = "osmnx_amenity.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2fuel_station_40]
-description = "'Dummy' variable indicating whether the point is less than 40m away from a fuel station."
-type = "boolean"
-range = [ 0, 1,]
-created_on = "osmnx_amenity.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[close2drinking_water_20]
-description = "'Dummy' variable indicating whether the point is less than 20m away from a drinking water source."
-type = "boolean"
-range = [ 0, 1,]
-created_on = "osmnx_amenity.ipynb"
-source = "OSM"
-source_url = "https://www.openstreetmap.org/"
-
-[closeby_street_count_20]
+[num_streets_20]
 description = "Number of nearby streets within 20 meters"
 type = "float"
 range = "Depends on the subject"
@@ -462,7 +418,7 @@ created_on = "osmnx.ipynb"
 source = "OSM"
 source_url = "https://www.openstreetmap.org/"
 
-[closeby_street_count_50]
+[num_streets_50]
 description = "Number of nearby streets within 50 meters"
 type = "float"
 range = "Depends on the subject"
@@ -470,7 +426,7 @@ created_on = "osmnx.ipynb"
 source = "OSM"
 source_url = "https://www.openstreetmap.org/"
 
-[closeby_traffic_light_count_200]
+[num_traffic_light_200]
 description = "Number of nearby traffic lights within 200 meters"
 type = "float"
 range = "Depends on the subject"
@@ -478,7 +434,7 @@ created_on = "osmnx.ipynb"
 source = "OSM"
 source_url = "https://www.openstreetmap.org/"
 
-[closeby_traffic_light_count_400]
+[num_traffic_light_400]
 description = "Number of nearby traffic lights within 400 meters"
 type = "float"
 range = "Depends on the subject"
@@ -551,6 +507,174 @@ source = "OSM"
 source_url = "https://www.openstreetmap.org/"
 
 [len_nearby_service_street_150]
+description = "Length of nearby service streets within 150 meters"
+type = "float"
+range = "Depends on the subject"
+created_on = "osmnx.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2water_25]
+description = "'Dummy' variable indicating wheter the point is less than 25m away from a water body"
+type = "integer"
+range = [ 0, 1,]
+created_on = "osmnx_water.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2water_100]
+description = "'Dummy' variable indicating wheter the point is less than 100m away from a water body"
+type = "integer"
+range = [ 0, 1,]
+created_on = "osmnx_water.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2chimney_150]
+description = "'Dummy' variable indicating whether the point is less than 150m away from a chimney"
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_man_made.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2water_tap_75]
+description = "'Dummy' variable indicating whether the point is less than 75m away from a water_tap"
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_man_made.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2industrial_building_15]
+description = "'Dummy' variable indicating whether the point is less than 15m away from an industrial building"
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_buildings.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2industrial_building_100]
+description = "'Dummy' variable indicating whether the point is less than 100m away from an industrial building"
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_buildings.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[average_building_height_100]
+description = "Average (low-rank SVD) estimated building height within a 100m radius circle around the point"
+type = "float"
+range = [ 0.144759091326593, 3.7758139442192196,]
+created_on = "osmnx_buildings.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[num_residential_buildings_200]
+description = "Number of residential buildings within a 200m radius circle around the point"
+type = "integer"
+range = [ 0, 107,]
+created_on = "osmnx_buildings.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[proportion_residential_buildings_300]
+description = "Proportion of residential buildings within a 500m radius circle around the point"
+type = "float"
+range = [ 0.0, 0.2458095585215601,]
+created_on = "osmnx_buildings.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[close2commercial_building_25]
+description = "'Dummy' variable indicating whether the point is less than 25m away from a commercial building"
+type = "boolean"
+range = [ 0, 1,]
+created_on = "osmnx_buildings.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[num_commercial_buildings_200]
+description = "Number of commercial buildings within a 200m radius circle around the point"
+type = "integer"
+range = [ 0, 9,]
+created_on = "osmnx_buildings.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[proportion_residential_buildings_500]
+description = "Proportion of residential buildings within a 500m radius circle around the point"
+type = "float"
+range = [ 0.0, 0.2458095585215601,]
+created_on = "osmnx_buildings.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[sum_streets_nearby_20]
+description = "Number of nearby streets within 20 meters"
+type = "float"
+range = "Depends on the subject"
+created_on = "osmnx.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[sum_streets_nearby_50]
+description = "Number of nearby streets within 50 meters"
+type = "float"
+range = "Depends on the subject"
+created_on = "osmnx.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[average_nearby_streets_len_50]
+description = "Average length of nearby streets within 50 meters"
+type = "float"
+range = "Depends on the subject"
+created_on = "osmnx.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[sum_nearby_residential_street_len_50]
+description = "Length of nearby residential streets within 50 meters"
+type = "float"
+range = "Depends on the subject"
+created_on = "osmnx.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[sum_nearby_residential_street_len_150]
+description = "Length of nearby residential streets within 150 meters"
+type = "float"
+range = "Depends on the subject"
+created_on = "osmnx.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[sum_nearby_pedestrian_street_len_15]
+description = "Length of nearby pedestrian streets within 15 meters"
+type = "float"
+range = "Depends on the subject"
+created_on = "osmnx.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[sum_nearby_pedestrian_street_len_50]
+description = "Length of nearby pedestrian streets within 50 meters"
+type = "float"
+range = "Depends on the subject"
+created_on = "osmnx.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[sum_nearby_service_street_len_50]
+description = "Length of nearby service streets within 50 meters"
+type = "float"
+range = "Depends on the subject"
+created_on = "osmnx.ipynb"
+source = "OSM"
+source_url = "https://www.openstreetmap.org/"
+
+[sum_nearby_service_street_len_150]
 description = "Length of nearby service streets within 150 meters"
 type = "float"
 range = "Depends on the subject"
