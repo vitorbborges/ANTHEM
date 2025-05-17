@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import LineString, Point
 
-from src.spatial_data_loader import SpatialDataLoader
+from src.data_processing.spatial_data_loader import SpatialDataLoader
 
 
 class SpatialFeatureExtractor:

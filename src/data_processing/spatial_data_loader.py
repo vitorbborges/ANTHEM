@@ -10,7 +10,7 @@ from osmnx.features import features_from_bbox
 from shapely.geometry import LineString
 from shapely.ops import linemerge, substring
 
-from src.feature_imputer import FeatureImputer
+from src.data_processing.feature_imputer import FeatureImputer
 
 
 class SpatialDataLoader:

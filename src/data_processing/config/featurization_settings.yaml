@@ -1,0 +1,20 @@
+# config/settings.yaml
+
+defaults:
+  - _self_
+  - override hydra/launcher: joblib
+  - override hydra/sweeper: basic
+
+# This is an integer that will be overridden during sweeping
+subject: null
+
+hydra:
+  sweeper:
+    params:
+      subject: 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20
+  run:
+    dir: ${hydra:runtime.cwd}/runs/${hydra.job.num}
+  launcher:
+    n_jobs: -1 # Use all available cores
+  job:
+    chdir: false # Disable working directory changes
