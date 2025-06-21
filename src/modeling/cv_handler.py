@@ -34,11 +34,25 @@ class CrossValidationHandler:
         start_time = time.time()
         n_features = X.shape[1]
 
+        # TODO: Add temporal ordering for Kalman Filter
+        # For Kalman filtering, data should be sorted by timestamp
+        # if 'timestamp' in X.columns:
+        #     sort_idx = X['timestamp'].argsort()
+        #     X = X.iloc[sort_idx]
+        #     y = y.iloc[sort_idx]
+
         # Create stratification bins for continuous target
         log_message(f"Trial {trial_number}: Creating stratification bins...")
         strata = stratify_continuous(y)
 
         # Create holdout set (never touched during training/CV)
+        # TODO: For Kalman Filter, use temporal split instead of random split
+        # Use last 20% of data as holdout for time series validation
+        # holdout_split_idx = int(len(X) * 0.8)
+        # X_dev, X_holdout = X.iloc[:holdout_split_idx], X.iloc[holdout_split_idx:]
+        # y_dev, y_holdout = y.iloc[:holdout_split_idx], y.iloc[holdout_split_idx:]
+        # strata_dev = strata[:holdout_split_idx]
+
         X_dev, X_holdout, y_dev, y_holdout, strata_dev, _ = train_test_split(
             X, y, strata, test_size=self.test_size, random_state=42, stratify=strata
         )
@@ -48,6 +62,9 @@ class CrossValidationHandler:
         )
 
         # Outer CV for performance estimation
+        # TODO: For Kalman Filter, use TimeSeriesSplit instead of StratifiedKFold
+        # from sklearn.model_selection import TimeSeriesSplit
+        # outer_cv = TimeSeriesSplit(n_splits=self.outer_folds, test_size=None)
         outer_cv = StratifiedKFold(
             n_splits=self.outer_folds, shuffle=True, random_state=42
         )
@@ -66,6 +83,8 @@ class CrossValidationHandler:
 
             # Inner CV for hyperparameter tuning
             inner_strata = stratify_continuous(y_train)
+            # TODO: For Kalman Filter, use TimeSeriesSplit for inner CV as well
+            # inner_cv = TimeSeriesSplit(n_splits=self.inner_folds, test_size=None)
             inner_cv = StratifiedKFold(
                 n_splits=self.inner_folds, shuffle=True, random_state=0
             )
@@ -86,6 +105,13 @@ class CrossValidationHandler:
                     # Fit and evaluate on inner fold
                     pipeline.fit(X_inner_train, y_inner_train)
                     y_inner_pred = pipeline.predict(X_inner_val)
+
+                    # TODO: For Kalman Filter, add sequential prediction with state updates
+                    # if hasattr(pipeline.named_steps.get('kalman_filter'), 'predict_sequential'):
+                    #     y_inner_pred = pipeline.named_steps['kalman_filter'].predict_sequential(
+                    #         X_inner_val, y_inner_train[-1]  # Use last training value as initial state
+                    #     )
+
                     inner_fold_mse = mean_squared_error(y_inner_val, y_inner_pred)
                     inner_cv_scores.append(inner_fold_mse)
 
@@ -101,6 +127,12 @@ class CrossValidationHandler:
                 # Refit on entire outer training fold
                 pipeline.fit(X_train, y_train)
                 y_outer_pred = pipeline.predict(X_test)
+
+                # TODO: For Kalman Filter, use sequential prediction for outer fold evaluation
+                # if hasattr(pipeline.named_steps.get('kalman_filter'), 'predict_sequential'):
+                #     y_outer_pred = pipeline.named_steps['kalman_filter'].predict_sequential(
+                #         X_test, y_train.iloc[-1]  # Use last training value as initial state
+                #     )
 
                 # Calculate outer fold metrics
                 outer_fold_mse = mean_squared_error(y_test, y_outer_pred)
@@ -143,6 +175,13 @@ class CrossValidationHandler:
 
             # Holdout test metrics
             y_holdout_pred = final_pipeline.predict(X_holdout)
+
+            # TODO: For Kalman Filter, use sequential prediction on holdout set
+            # if hasattr(final_pipeline.named_steps.get('kalman_filter'), 'predict_sequential'):
+            #     y_holdout_pred = final_pipeline.named_steps['kalman_filter'].predict_sequential(
+            #         X_holdout, y_dev.iloc[-1]  # Use last development value as initial state
+            #     )
+
             holdout_test_mse = mean_squared_error(y_holdout, y_holdout_pred)
             holdout_test_mae = mean_absolute_error(y_holdout, y_holdout_pred)
             holdout_test_r2 = r2_score(y_holdout, y_holdout_pred)

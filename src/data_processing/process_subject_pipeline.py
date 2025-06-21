@@ -65,6 +65,8 @@ class ProcessSubjectPipeline:
         static_df = self.extractor.extract_static(data, kml)
         dynamic_df = self.extractor.extract_dynamic(data, segments)
         # TODO: remove the "segments" parameter from extract_dynamics()
+        # TODO: delete the todo comments after finished to debloat the code
+
         df = pd.concat([static_df, dynamic_df]).sort_index()
 
         # Timestamp adjustment

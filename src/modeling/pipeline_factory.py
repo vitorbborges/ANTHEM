@@ -82,7 +82,10 @@ def create_lasso_selection(
     alpha = trial.suggest_float("lasso__alpha", 0.01, 50, log=True)
     return (
         "lasso_sel",
-        SelectFromModel(Lasso(alpha=alpha, random_state=0), threshold="mean"),
+        SelectFromModel(
+            Lasso(alpha=alpha, random_state=0, max_iter=2000, tol=1e-3),
+            threshold="mean",
+        ),
     )
 
 
@@ -100,7 +103,7 @@ def create_ridge(
 ) -> tuple[str, BaseEstimator]:
     """Creates a Ridge model step with tunable alpha."""
     alpha = trial.suggest_float("ridge__alpha", 0.1, 50.0, log=True)
-    return ("model", Ridge(alpha=alpha))
+    return ("model", Ridge(alpha=alpha, max_iter=2000, tol=1e-3))
 
 
 @register_step("random_forest")
@@ -154,6 +157,20 @@ def create_k_neighbors(
     )
 
 
+# --- Kalman Filter Components ---
+
+# TODO: Add Kalman Filter step registration here
+# @register_step("kalman_filter")
+# def create_kalman_filter(trial: optuna.Trial, X: Optional[pd.DataFrame] = None) -> tuple[str, BaseEstimator]:
+#     """Creates a Kalman Filter wrapper for ML models."""
+#     # TODO: Implement Kalman Filter parameters tuning:
+#     # - process_noise = trial.suggest_float("kalman__process_noise", 1e-5, 1e-1, log=True)
+#     # - observation_noise = trial.suggest_float("kalman__observation_noise", 1e-5, 1e-1, log=True)
+#     # - initial_state_covariance = trial.suggest_float("kalman__initial_covariance", 1e-3, 1e1, log=True)
+#     # - forgetting_factor = trial.suggest_float("kalman__forgetting_factor", 0.95, 0.999)
+#     # return ("kalman_filter", KalmanFilterWrapper(process_noise, observation_noise, ...))
+#     pass
+
 # --- Main Pipeline Creation Function ---
 
 
@@ -195,5 +212,11 @@ def create_pipeline(trial: optuna.Trial, X: pd.DataFrame) -> Pipeline:
     create_func = STEP_REGISTRY.get(model_choice)
     if create_func:
         steps.append(create_func(trial, X))
+
+    # TODO: Add Kalman Filter as post-processing step
+    # Add option to wrap the final model with Kalman Filter
+    # kalman_enabled = trial.suggest_categorical("use_kalman_filter", [True, False])
+    # if kalman_enabled:
+    #     steps.append(create_kalman_filter(trial, X))
 
     return Pipeline(steps)

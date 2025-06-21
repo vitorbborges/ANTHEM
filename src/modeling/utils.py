@@ -62,12 +62,24 @@ def load_data(
         log_message(f"Loading data from {file_path}...")
         df = pd.read_parquet(file_path)
 
+        # TODO: For Kalman Filter, ensure temporal ordering
+        # Sort by timestamp if available for sequential modeling
+        # if 'timestamp' in df.columns:
+        #     df = df.sort_values('timestamp').reset_index(drop=True)
+        #     log_message("Data sorted by timestamp for Kalman filtering")
+
         # Extract features and target, keep only numeric columns
         columns_to_use = [
             col for col in df.columns if df[col].dtype in ("float64", "int64")
         ]
         remove_cols = ["P", "PM1", "PM10", "RH", "T", "VOC"]
         columns_to_use = [col for col in columns_to_use if col not in remove_cols]
+
+        # TODO: For Kalman Filter, add lag features for temporal dependencies
+        # Add lagged versions of CO2 and other key features
+        # for lag in [1, 2, 3, 5, 10]:
+        #     df[f'CO2_lag_{lag}'] = df['CO2'].shift(lag)
+        #     columns_to_use.append(f'CO2_lag_{lag}')
 
         X = df[columns_to_use].dropna()
         y = X.pop("CO2")

@@ -122,6 +122,20 @@ def parse_arguments():
         help="Holdout test set size (default: 0.2)",
     )
 
+    # TODO: Add Kalman Filter specific arguments
+    # parser.add_argument(
+    #     "--enable-kalman",
+    #     action="store_true",
+    #     help="Enable Kalman filtering for predictions"
+    # )
+    #
+    # parser.add_argument(
+    #     "--kalman-mode",
+    #     choices=["post-process", "integrated"],
+    #     default="post-process",
+    #     help="Kalman filter mode: post-process ML predictions or integrate into pipeline"
+    # )
+
     return parser.parse_args()
 
 
