@@ -1,11 +1,10 @@
-"""
-Updated pipeline factory with simplified interface.
-"""
-
+# src/modeling/pipeline_factory.py
 import inspect
+from typing import Optional
 
 import numpy as np
 import optuna
+import pandas as pd
 from sklearn.base import BaseEstimator
 from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestRegressor
@@ -41,7 +40,9 @@ def register_step(name: str):
 
 
 @register_step("scaler")
-def create_scaler(trial: optuna.Trial, X=None) -> tuple[str, BaseEstimator]:
+def create_scaler(
+    trial: optuna.Trial, X: Optional[pd.DataFrame] = None
+) -> tuple[str, BaseEstimator]:
     """Creates a scaling step."""
     scaler_choice = trial.suggest_categorical(
         "scaler__type", ["standard", "minmax", "robust"]
@@ -56,8 +57,10 @@ def create_scaler(trial: optuna.Trial, X=None) -> tuple[str, BaseEstimator]:
 
 
 @register_step("power_transformer")
-def create_power_transformer(trial: optuna.Trial, X=None) -> tuple[str, BaseEstimator]:
-    """Creates a PowerTransformer step with fixed yeo-johnson method."""
+def create_power_transformer(
+    trial: optuna.Trial, X: Optional[pd.DataFrame] = None
+) -> tuple[str, BaseEstimator]:
+    """Creates a PowerTransformer step."""
     method = trial.suggest_categorical(
         "power_transform__method", ["yeo-johnson", "box-cox"]
     )
@@ -65,15 +68,17 @@ def create_power_transformer(trial: optuna.Trial, X=None) -> tuple[str, BaseEsti
 
 
 @register_step("pca")
-def create_pca(trial: optuna.Trial, X=None) -> tuple[str, BaseEstimator]:
+def create_pca(trial: optuna.Trial, X: pd.DataFrame) -> tuple[str, BaseEstimator]:
     """Creates a PCA step with direct n_components selection."""
     n_components = trial.suggest_float("pca__n_components", 0.8, 0.99, log=True)
     return ("pca", PCA(n_components=n_components))
 
 
 @register_step("lasso_selection")
-def create_lasso_selection(trial: optuna.Trial, X=None) -> tuple[str, BaseEstimator]:
-    """Creates a SelectFromModel step using Lasso with a fixed alpha."""
+def create_lasso_selection(
+    trial: optuna.Trial, X: Optional[pd.DataFrame] = None
+) -> tuple[str, BaseEstimator]:
+    """Creates a SelectFromModel step using Lasso."""
     alpha = trial.suggest_float("lasso__alpha", 0.01, 50, log=True)
     return (
         "lasso_sel",
@@ -82,21 +87,27 @@ def create_lasso_selection(trial: optuna.Trial, X=None) -> tuple[str, BaseEstima
 
 
 @register_step("linear_regression")
-def create_linear_regression(trial: optuna.Trial, X=None) -> tuple[str, BaseEstimator]:
+def create_linear_regression(
+    trial: optuna.Trial, X: Optional[pd.DataFrame] = None
+) -> tuple[str, BaseEstimator]:
     """Creates a LinearRegression model step."""
     return ("model", LinearRegression())
 
 
 @register_step("ridge")
-def create_ridge(trial: optuna.Trial, X=None) -> tuple[str, BaseEstimator]:
+def create_ridge(
+    trial: optuna.Trial, X: Optional[pd.DataFrame] = None
+) -> tuple[str, BaseEstimator]:
     """Creates a Ridge model step with tunable alpha."""
     alpha = trial.suggest_float("ridge__alpha", 0.1, 50.0, log=True)
     return ("model", Ridge(alpha=alpha))
 
 
 @register_step("random_forest")
-def create_random_forest(trial: optuna.Trial, X=None) -> tuple[str, BaseEstimator]:
-    """Creates a RandomForestRegressor model step with limited hyperparameters."""
+def create_random_forest(
+    trial: optuna.Trial, X: Optional[pd.DataFrame] = None
+) -> tuple[str, BaseEstimator]:
+    """Creates a RandomForestRegressor model step."""
     n_estimators = trial.suggest_int("random_forest__n_estimators", 10, 100)
     max_depth = trial.suggest_int("random_forest__max_depth", 1, 15)
     return (
@@ -111,23 +122,29 @@ def create_random_forest(trial: optuna.Trial, X=None) -> tuple[str, BaseEstimato
 
 
 @register_step("svr")
-def create_svr(trial: optuna.Trial, X=None) -> tuple[str, BaseEstimator]:
-    """Creates an SVR model step with limited tunable hyperparameters."""
+def create_svr(
+    trial: optuna.Trial, X: Optional[pd.DataFrame] = None
+) -> tuple[str, BaseEstimator]:
+    """Creates an SVR model step."""
     C = trial.suggest_float("svr__C", 0.1, 10.0, log=True)
     return ("model", SVR(C=C, kernel="linear"))
 
 
 @register_step("k_neighbors")
-def create_k_neighbors(trial: optuna.Trial, X=None) -> tuple[str, BaseEstimator]:
-    """Creates a KNeighborsRegressor model step with only n_neighbors tunable."""
+def create_k_neighbors(
+    trial: optuna.Trial, X: Optional[pd.DataFrame] = None
+) -> tuple[str, BaseEstimator]:
+    """Creates a KNeighborsRegressor model step."""
     n_neighbors = trial.suggest_int("k_neighbors__n_neighbors", 3, 50)
     metric = trial.suggest_categorical(
         "knn__metric", ["euclidean", "manhattan", "minkowski"]
     )
     weights = trial.suggest_categorical("knn__weights", ["uniform", "distance"])
-    p = 2  # Default
+
     if metric == "minkowski":
         p = trial.suggest_int("knn__p", 1, 5)
+    else:
+        p = 2
 
     return (
         "model",
@@ -140,26 +157,30 @@ def create_k_neighbors(trial: optuna.Trial, X=None) -> tuple[str, BaseEstimator]
 # --- Main Pipeline Creation Function ---
 
 
-def create_pipeline(trial: optuna.Trial, X=None) -> Pipeline:
+def create_pipeline(trial: optuna.Trial, X: pd.DataFrame) -> Pipeline:
     """
-    Creates a simplified machine learning pipeline based on Optuna trial suggestions.
-    Heavily optimized for speed.
+    Creates a machine learning pipeline based on Optuna trial suggestions.
     """
     steps = []
 
     # Always include a scaler first
     steps.append(create_scaler(trial, X))
 
-    # Simplify feature processing to only consider 3 options
+    # Feature processing options
     feature_step_choice = trial.suggest_categorical(
         "feature_step", ["none", "lasso_selection", "pca"]
     )
+
     if feature_step_choice != "none":
         create_func = STEP_REGISTRY.get(feature_step_choice)
         if create_func:
-            steps.append(create_func(trial, X))
+            func_params = inspect.signature(create_func).parameters
+            if "X" in func_params:
+                steps.append(create_func(trial, X))
+            else:
+                steps.append(create_func(trial))
 
-    # Choose the final model, prioritizing faster models
+    # Choose the final model
     model_choice = trial.suggest_categorical(
         "final_model",
         [
@@ -170,6 +191,7 @@ def create_pipeline(trial: optuna.Trial, X=None) -> Pipeline:
             "k_neighbors",
         ],
     )
+
     create_func = STEP_REGISTRY.get(model_choice)
     if create_func:
         steps.append(create_func(trial, X))
