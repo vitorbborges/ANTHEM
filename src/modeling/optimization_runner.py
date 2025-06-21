@@ -1,356 +1,325 @@
 """
-Cross-platform parallel optimization runner.
-Replaces bash scripts with Python for Windows compatibility.
+Refactored optimization runner with modular design.
 """
 
-import argparse
 import json
-import multiprocessing as mp
 import os
-import subprocess
-import sys
-import threading
+import pickle
 import time
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, Optional
+
+import numpy as np
+import optuna
+import pandas as pd
+from optuna.trial import TrialState
+
+from src.modeling.cv_manager import CrossValidationManager
+from src.modeling.db_config import DatabaseConfig, DatabaseType, StudyManager
+from src.modeling.pipeline_factory import create_pipeline
 
 
-class ParallelOptimizationRunner:
-    """Cross-platform parallel optimization runner."""
+class OptimizationLogger:
+    """Handles logging for optimization runs."""
+
+    def __init__(self, log_file: Optional[str] = None):
+        if log_file is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            log_file = f"metrics/optimization_log_{timestamp}.txt"
+
+        self.log_file = log_file
+        os.makedirs(os.path.dirname(log_file), exist_ok=True)
+
+    def log(self, message: str):
+        """Log a message to both console and file."""
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        full_message = f"{timestamp} - {message}"
+        print(full_message)
+
+        with open(self.log_file, "a") as f:
+            f.write(full_message + "\n")
+
+
+class OptimizationRunner:
+    """Main class for running hyperparameter optimization."""
 
     def __init__(
         self,
-        num_workers: int = 4,
-        n_trials_per_worker: int = 10,
-        timeout_per_worker: int = 600,
-        db_type: str = "sqlite",
-        mysql_config: Optional[Dict[str, str]] = None,
-        output_dir: str = "metrics",
+        db_config: DatabaseConfig,
+        cv_manager: CrossValidationManager,
+        logger: OptimizationLogger,
+        data_path: str = "data/processed_data/S3-coords.parquet",
+        models_dir: str = "models",
+        metrics_dir: str = "metrics",
     ):
-        self.num_workers = num_workers
-        self.n_trials_per_worker = n_trials_per_worker
-        self.timeout_per_worker = timeout_per_worker
-        self.db_type = db_type
-        self.mysql_config = mysql_config or {}
-        self.output_dir = Path(output_dir)
+        self.db_config = db_config
+        self.cv_manager = cv_manager
+        self.logger = logger
+        self.data_path = data_path
+        self.models_dir = models_dir
+        self.metrics_dir = metrics_dir
 
-        # Create output directory
-        self.output_dir.mkdir(exist_ok=True)
+        # Create directories
+        os.makedirs(self.models_dir, exist_ok=True)
+        os.makedirs(self.metrics_dir, exist_ok=True)
 
-        # Setup logging
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.log_file = self.output_dir / f"parallel_run_{timestamp}.log"
-        self.summary_file = self.output_dir / f"run_summary_{timestamp}.json"
+        # Initialize study manager
+        self.study_manager = StudyManager(db_config)
 
-        # Results tracking
-        self.worker_results: List[Dict[str, Any]] = []
-        self.start_time = None
-        self.end_time = None
+        # Data cache
+        self._data_cache = None
 
-    def log(self, message: str):
-        """Log message to both console and file."""
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        full_message = f"[{timestamp}] {message}"
-        print(full_message)
-
-        with open(self.log_file, "a", encoding="utf-8") as f:
-            f.write(full_message + "\n")
-
-    def setup_environment(self, worker_id: int) -> Dict[str, str]:
-        """Setup environment variables for a worker."""
-        env = os.environ.copy()
-        env.update(
-            {
-                "WORKER_ID": str(worker_id),
-                "N_TRIALS": str(self.n_trials_per_worker),
-                "TIMEOUT": str(self.timeout_per_worker),
-                "DB_TYPE": self.db_type,
-            }
-        )
-
-        # Add MySQL configuration if provided
-        if self.db_type == "mysql" and self.mysql_config:
-            env.update(
-                {
-                    "MYSQL_USER": self.mysql_config.get("user", "optuna_user"),
-                    "MYSQL_PASSWORD": self.mysql_config.get("password", ""),
-                    "MYSQL_HOST": self.mysql_config.get("host", "localhost"),
-                    "MYSQL_DATABASE": self.mysql_config.get("database", "optuna_db"),
-                }
-            )
-
-        return env
-
-    def run_single_worker(self, worker_id: int) -> Dict[str, Any]:
-        """Run optimization for a single worker."""
-        start_time = time.time()
+    def load_data(self) -> tuple[pd.DataFrame, pd.Series, int]:
+        """Load and prepare data."""
+        if self._data_cache is not None:
+            return self._data_cache
 
         try:
-            # Setup environment
-            env = self.setup_environment(worker_id)
+            self.logger.log(f"Loading data from {self.data_path}")
+            df = pd.read_parquet(self.data_path)
+        except FileNotFoundError:
+            self.logger.log(f"Error: {self.data_path} not found")
+            raise
 
-            # Run the optimization
-            self.log(f"Starting worker {worker_id}")
+        # Extract features and target
+        columns_to_use = [
+            col for col in df.columns if df[col].dtype in ("float64", "int64")
+        ]
+        remove_cols = ["P", "PM1", "PM10", "RH", "T", "VOC"]
+        columns_to_use = [col for col in columns_to_use if col not in remove_cols]
 
-            # Run the main optimization script
-            result = subprocess.run(
-                [sys.executable, "-u", "optimization_runner.py"],
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=self.timeout_per_worker + 60,  # Add buffer for cleanup
+        X = df[columns_to_use].dropna()
+        y = X.pop("CO2")
+        n_features = X.shape[1]
+
+        self.logger.log(f"Data loaded: {len(X)} samples, {n_features} features")
+        self._data_cache = (X, y, n_features)
+        return X, y, n_features
+
+    def create_objective_function(self) -> Callable:
+        """Create the objective function for Optuna."""
+
+        def objective(trial: optuna.Trial) -> float:
+            start_time = time.time()
+
+            # Load data
+            X, y, n_features = self.load_data()
+
+            # Prepare data splits
+            X_dev, X_holdout, y_dev, y_holdout, strata_dev, _ = (
+                self.cv_manager.prepare_data(X, y)
             )
 
-            end_time = time.time()
-            duration = end_time - start_time
-
-            if result.returncode == 0:
-                self.log(
-                    f"Worker {worker_id} completed successfully in {duration:.2f}s"
-                )
-                status = "completed"
-                error = None
-            else:
-                self.log(
-                    f"Worker {worker_id} failed with return code {result.returncode}"
-                )
-                self.log(f"Worker {worker_id} stderr: {result.stderr}")
-                status = "failed"
-                error = result.stderr
-
-            # Try to load worker results
-            worker_results_file = (
-                self.output_dir / f"best_params_worker_{worker_id}.json"
+            self.logger.log(
+                f"Trial {trial.number}: Created holdout set with {len(X_holdout)} samples"
             )
-            worker_results = None
-            if worker_results_file.exists():
-                try:
-                    with open(worker_results_file, "r") as f:
-                        worker_results = json.load(f)
-                except Exception as e:
-                    self.log(f"Failed to load results for worker {worker_id}: {e}")
 
-            return {
-                "worker_id": worker_id,
-                "status": status,
-                "duration": duration,
-                "return_code": result.returncode,
-                "error": error,
-                "results": worker_results,
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-            }
+            # Pipeline factory function
+            def pipeline_factory(trial_obj, X_data):
+                return create_pipeline(trial_obj, X_data)
 
-        except subprocess.TimeoutExpired:
-            self.log(f"Worker {worker_id} timed out after {self.timeout_per_worker}s")
-            return {
-                "worker_id": worker_id,
-                "status": "timeout",
-                "duration": self.timeout_per_worker,
-                "return_code": -1,
-                "error": "Timeout",
-                "results": None,
-                "stdout": "",
-                "stderr": "",
-            }
-        except Exception as e:
-            self.log(f"Worker {worker_id} failed with exception: {e}")
-            return {
-                "worker_id": worker_id,
-                "status": "error",
-                "duration": time.time() - start_time,
-                "return_code": -1,
-                "error": str(e),
-                "results": None,
-                "stdout": "",
-                "stderr": "",
-            }
+            # Nested cross-validation
+            try:
+                outer_metrics = self.cv_manager.nested_cross_validation(
+                    X_dev,
+                    y_dev,
+                    strata_dev,
+                    pipeline_factory,
+                    trial,
+                    n_features,
+                    self.logger.log,
+                )
 
-    def run_parallel_optimization(self) -> Dict[str, Any]:
-        """Run parallel optimization with multiple workers."""
-        self.log(f"Starting parallel optimization with {self.num_workers} workers")
-        self.log(
-            f"Each worker will run {self.n_trials_per_worker} trials with {self.timeout_per_worker}s timeout"
-        )
-        self.log(f"Using database type: {self.db_type}")
+                if len(outer_metrics.mse_scores) == 0:
+                    self.logger.log(
+                        f"Trial {trial.number}: No successful outer folds, pruning trial"
+                    )
+                    raise optuna.exceptions.TrialPruned()
 
-        self.start_time = time.time()
+                # Get mean CV metrics
+                cv_metrics = outer_metrics.get_mean_metrics()
 
-        # Clean up old worker result files
-        for old_file in self.output_dir.glob("best_params_worker_*.json"):
-            old_file.unlink()
+                # Final evaluation
+                final_results = self.cv_manager.final_evaluation(
+                    X_dev,
+                    y_dev,
+                    X_holdout,
+                    y_holdout,
+                    pipeline_factory,
+                    trial,
+                    n_features,
+                    self.logger.log,
+                )
 
-        # Run workers in parallel
-        with ProcessPoolExecutor(max_workers=self.num_workers) as executor:
-            # Submit all workers
-            future_to_worker = {
-                executor.submit(self.run_single_worker, worker_id): worker_id
-                for worker_id in range(1, self.num_workers + 1)
-            }
-
-            # Collect results as they complete
-            for future in as_completed(future_to_worker):
-                worker_id = future_to_worker[future]
-                try:
-                    result = future.result()
-                    self.worker_results.append(result)
-                except Exception as e:
-                    self.log(f"Worker {worker_id} generated an exception: {e}")
-                    self.worker_results.append(
-                        {
-                            "worker_id": worker_id,
-                            "status": "exception",
-                            "duration": 0,
-                            "return_code": -1,
-                            "error": str(e),
-                            "results": None,
-                            "stdout": "",
-                            "stderr": "",
-                        }
+                # Save model if evaluation was successful
+                if final_results["final_pipeline"] is not None:
+                    model_path = os.path.join(
+                        self.models_dir, f"model_trial_{trial.number}.pkl"
+                    )
+                    with open(model_path, "wb") as f:
+                        pickle.dump(final_results["final_pipeline"], f)
+                    self.logger.log(
+                        f"Trial {trial.number}: Model saved to {model_path}"
                     )
 
-        self.end_time = time.time()
-        total_duration = self.end_time - self.start_time
+                    # Save predictions
+                    if final_results["predictions"] is not None:
+                        predictions_df = pd.DataFrame(final_results["predictions"])
+                        predictions_path = os.path.join(
+                            self.metrics_dir,
+                            f"holdout_results_trial_{trial.number}.csv",
+                        )
+                        predictions_df.to_csv(predictions_path, index=False)
 
-        self.log(f"All workers completed in {total_duration:.2f}s")
+                # Calculate time taken
+                time_taken = time.time() - start_time
 
-        # Analyze results
-        summary = self.analyze_results()
+                # Log results
+                self.logger.log(f"Trial {trial.number}: Completed in {time_taken:.2f}s")
+                self.logger.log(
+                    f"Trial {trial.number}: Mean CV MSE = {cv_metrics['mean_mse']:.6f}"
+                )
 
-        # Save summary
-        with open(self.summary_file, "w") as f:
-            json.dump(summary, f, indent=2)
+                # Store metrics in trial attributes
+                trial.set_user_attr("cv_mse", cv_metrics["mean_mse"])
+                trial.set_user_attr("cv_mae", cv_metrics["mean_mae"])
+                trial.set_user_attr("cv_r2", cv_metrics["mean_r2"])
+                trial.set_user_attr("cv_adj_r2", cv_metrics["mean_adj_r2"])
+                trial.set_user_attr("time_taken", time_taken)
+                trial.set_user_attr("n_features", n_features)
 
-        self.log(f"Run summary saved to {self.summary_file}")
+                # Store all CV scores
+                all_scores = outer_metrics.get_all_scores()
+                for key, scores in all_scores.items():
+                    trial.set_user_attr(f"outer_cv_{key}", scores)
 
-        return summary
+                # Store final evaluation metrics
+                for key, value in final_results.items():
+                    if key != "final_pipeline" and key != "predictions":
+                        trial.set_user_attr(key, value)
 
-    def analyze_results(self) -> Dict[str, Any]:
-        """Analyze results from all workers."""
-        successful_workers = [
-            r for r in self.worker_results if r["status"] == "completed"
-        ]
-        failed_workers = [r for r in self.worker_results if r["status"] != "completed"]
+                return cv_metrics["mean_mse"]
 
-        self.log(
-            f"Results: {len(successful_workers)} successful, {len(failed_workers)} failed"
+            except optuna.exceptions.TrialPruned:
+                raise
+            except Exception as e:
+                self.logger.log(f"Trial {trial.number}: Failed with error: {str(e)}")
+                raise optuna.exceptions.TrialPruned()
+
+        return objective
+
+    def run_optimization(
+        self,
+        n_trials: int = 10,
+        timeout: Optional[int] = None,
+        worker_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Run the optimization process."""
+
+        # Configure Optuna logging
+        optuna.logging.set_verbosity(optuna.logging.WARNING)
+
+        worker_id = worker_id or os.environ.get("WORKER_ID", "unknown")
+        self.logger.log(f"Starting optimization with worker ID: {worker_id}")
+
+        # Create objective function
+        objective = self.create_objective_function()
+
+        # Run optimization
+        study = self.study_manager.optimize(
+            objective, n_trials=n_trials, timeout=timeout
         )
 
-        # Find best result
-        best_result = None
-        best_mse = float("inf")
+        # Get results
+        completed_trials = len(
+            [t for t in study.trials if t.state == TrialState.COMPLETE]
+        )
+        self.logger.log(
+            f"Optimization finished. Total trials: {len(study.trials)}, Completed: {completed_trials}"
+        )
 
-        for worker_result in successful_workers:
-            if worker_result["results"] is not None:
-                worker_mse = worker_result["results"].get("best_cv_mse")
-                if worker_mse is not None and worker_mse < best_mse:
-                    best_mse = worker_mse
-                    best_result = worker_result
-
-        if best_result:
-            self.log(
-                f"Best result from worker {best_result['worker_id']} with MSE: {best_mse:.6f}"
-            )
-
-            # Save best overall result
-            best_overall_file = self.output_dir / "best_params_overall.json"
-            with open(best_overall_file, "w") as f:
-                json.dump(best_result["results"], f, indent=2)
-
-            self.log(f"Best overall parameters saved to {best_overall_file}")
-        else:
-            self.log("No valid results found from any worker")
-
-        summary = {
-            "run_info": {
-                "num_workers": self.num_workers,
-                "n_trials_per_worker": self.n_trials_per_worker,
-                "timeout_per_worker": self.timeout_per_worker,
-                "db_type": self.db_type,
-                "start_time": datetime.fromtimestamp(self.start_time).isoformat(),
-                "end_time": datetime.fromtimestamp(self.end_time).isoformat(),
-                "total_duration": self.end_time - self.start_time,
-            },
-            "results_summary": {
-                "total_workers": len(self.worker_results),
-                "successful_workers": len(successful_workers),
-                "failed_workers": len(failed_workers),
-                "best_mse": best_mse if best_mse != float("inf") else None,
-                "best_worker_id": best_result["worker_id"] if best_result else None,
-            },
-            "worker_results": self.worker_results,
-            "best_result": best_result["results"] if best_result else None,
+        results = {
+            "total_trials": len(study.trials),
+            "completed_trials": completed_trials,
+            "best_trial": None,
+            "worker_id": worker_id,
         }
 
-        return summary
+        if study.best_trial:
+            best_trial = study.best_trial
+            self.logger.log("Best trial found:")
+            self.logger.log(f" Value (Mean CV MSE): {best_trial.value:.6f}")
+
+            # Compile results
+            best_results = {
+                "best_cv_mse": best_trial.value,
+                "best_params": best_trial.params,
+                "worker_id": worker_id,
+                "trial_number": best_trial.number,
+            }
+
+            # Add user attributes
+            for key, value in best_trial.user_attrs.items():
+                best_results[key] = value
+
+            # Save results
+            results_path = os.path.join(
+                self.metrics_dir, f"best_params_worker_{worker_id}.json"
+            )
+            with open(results_path, "w") as f:
+                json.dump(best_results, f, indent=2)
+
+            self.logger.log(f"Best parameters saved to {results_path}")
+            results["best_trial"] = best_results
+        else:
+            self.logger.log("No successful trials were completed.")
+
+        return results
 
 
 def main():
-    """Main function with command-line interface."""
-    parser = argparse.ArgumentParser(
-        description="Run parallel hyperparameter optimization"
+    """Main function for running optimization."""
+
+    # Configuration
+    worker_id = os.environ.get("WORKER_ID", "1")
+    n_trials = int(os.environ.get("N_TRIALS", "10"))
+    timeout = int(os.environ.get("TIMEOUT", "600"))  # 10 minutes default
+
+    # Database configuration
+    db_type_str = os.environ.get("DB_TYPE", "sqlite").lower()
+    if db_type_str == "mysql":
+        db_config = DatabaseConfig(db_type=DatabaseType.MYSQL)
+    else:
+        db_config = DatabaseConfig(db_type=DatabaseType.SQLITE)
+
+    # Cross-validation configuration
+    cv_manager = CrossValidationManager(
+        outer_cv_folds=5, inner_cv_folds=3, test_size=0.2, random_state=42
     )
 
-    parser.add_argument(
-        "--workers", type=int, default=4, help="Number of parallel workers"
-    )
-    parser.add_argument(
-        "--trials", type=int, default=10, help="Number of trials per worker"
-    )
-    parser.add_argument(
-        "--timeout", type=int, default=600, help="Timeout per worker in seconds"
-    )
-    parser.add_argument(
-        "--db-type", choices=["sqlite", "mysql"], default="sqlite", help="Database type"
-    )
-    parser.add_argument("--mysql-user", default="optuna_user", help="MySQL username")
-    parser.add_argument("--mysql-password", default="", help="MySQL password")
-    parser.add_argument("--mysql-host", default="localhost", help="MySQL host")
-    parser.add_argument("--mysql-database", default="optuna_db", help="MySQL database")
-    parser.add_argument("--output-dir", default="metrics", help="Output directory")
+    # Logger
+    logger = OptimizationLogger()
 
-    args = parser.parse_args()
-
-    # Setup MySQL config if needed
-    mysql_config = None
-    if args.db_type == "mysql":
-        mysql_config = {
-            "user": args.mysql_user,
-            "password": args.mysql_password,
-            "host": args.mysql_host,
-            "database": args.mysql_database,
-        }
-
-    # Create and run the parallel optimizer
-    runner = ParallelOptimizationRunner(
-        num_workers=args.workers,
-        n_trials_per_worker=args.trials,
-        timeout_per_worker=args.timeout,
-        db_type=args.db_type,
-        mysql_config=mysql_config,
-        output_dir=args.output_dir,
+    # Runner
+    runner = OptimizationRunner(
+        db_config=db_config, cv_manager=cv_manager, logger=logger
     )
 
     try:
-        summary = runner.run_parallel_optimization()
+        # Run optimization
+        results = runner.run_optimization(
+            n_trials=n_trials, timeout=timeout, worker_id=worker_id
+        )
 
-        if summary["results_summary"]["best_mse"] is not None:
-            print(f"\n✅ Optimization completed successfully!")
-            print(f"Best MSE: {summary['results_summary']['best_mse']:.6f}")
-            print(f"Best worker: {summary['results_summary']['best_worker_id']}")
-        else:
-            print(f"\n⚠️ Optimization completed but no valid results found")
+        logger.log(f"Optimization completed successfully for worker {worker_id}")
 
-        print(f"Summary saved to: {runner.summary_file}")
-
-    except KeyboardInterrupt:
-        print("\n⏹️ Optimization interrupted by user")
-        sys.exit(1)
     except Exception as e:
-        print(f"\n❌ Optimization failed: {e}")
-        sys.exit(1)
+        logger.log(f"Error during optimization: {str(e)}")
+        logger.log("Please check that:")
+        logger.log("1. Database server is running (if using MySQL)")
+        logger.log("2. Data file exists at the specified path")
+        logger.log("3. Required environment variables are set")
+        raise
 
 
 if __name__ == "__main__":
