@@ -63,6 +63,8 @@ class SpatialFeatureExtractor:
     def extract_dynamic(
         self, df: pd.DataFrame, segments: gpd.GeoDataFrame
     ) -> pd.DataFrame:
+        # TODO: remove the segments parameter as input (it wont be needed)
+        # TODO: change this method to use resampling instead of evengly spreading the data
         """
         Interpolate dynamic regime points evenly along provided line segments.
 

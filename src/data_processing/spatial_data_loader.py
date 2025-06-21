@@ -266,6 +266,7 @@ class SpatialDataLoader:
             return gpd.read_file(Path(tmpdir) / "doc.kml", driver="KML")
 
     def build_segments(self, kml_gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        # TODO: Delete this method, it will be useless after the change
         """
         Split a closed LineString into ordered segments based on KML point breaks.
 
