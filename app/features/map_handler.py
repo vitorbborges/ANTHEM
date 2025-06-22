@@ -107,7 +107,12 @@ class MapHandler:
                 interactive=False,
             ).add_to(m)
 
+        # Only process LineString geometries
         gdf_lines = gdf[gdf.geometry.geom_type == "LineString"].copy()
+
+        if gdf_lines.empty:
+            return
+
         route_group = folium.FeatureGroup(name="Routes", show=True)
 
         for _, row in gdf_lines.iterrows():
@@ -127,6 +132,140 @@ class MapHandler:
 
         route_group.add_to(m)
 
+    def add_kml_points(self, m: folium.Map, points_gdf: gpd.GeoDataFrame) -> None:
+        """
+        Add KML point markers with hover-triggered text names to the map.
+
+        Parameters
+        ----------
+        m : folium.Map
+            Map to add markers to
+        points_gdf : gpd.GeoDataFrame
+            GeoDataFrame containing point data with names
+        """
+        if points_gdf.empty:
+            return
+
+        points_group = folium.FeatureGroup(name="KML Points", show=True)
+
+        for idx, row in points_gdf.iterrows():
+            point_name = row.get("Name", "Unnamed Point")
+            lat, lng = row.geometry.y, row.geometry.x
+
+            # Use CircleMarker with tooltip for better hover behavior
+            folium.CircleMarker(
+                location=[lat, lng],
+                radius=8,
+                color="#FF6B6B",
+                fill=True,
+                fillColor="#FF6B6B",
+                fillOpacity=0.8,
+                weight=2,
+                # Make it non-interactive for clicking to avoid conflicts
+                popup=None,
+                tooltip=folium.Tooltip(
+                    point_name,
+                    permanent=False,
+                    sticky=True,
+                    style="""
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        font-size: 12px;
+                        font-weight: bold;
+                        color: white;
+                        background-color: rgba(255, 107, 107, 0.9);
+                        border: 1px solid white;
+                        border-radius: 4px;
+                        padding: 4px 8px;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                    """,
+                ),
+            ).add_to(points_group)
+
+            # Add an invisible larger circle for better hover detection
+            folium.CircleMarker(
+                location=[lat, lng],
+                radius=15,  # Larger radius for easier hovering
+                color="transparent",
+                fill=True,
+                fillColor="transparent",
+                fillOpacity=0.0,
+                weight=0,
+                popup=folium.Popup(
+                    f"""
+                    <div style='
+                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                        font-size: 12px;
+                        background: #2F2F2F;
+                        color: white;
+                        padding: 12px;
+                        border-radius: 8px;
+                        min-width: 150px;
+                        border: 1px solid #FF6B6B;
+                    '>
+                        <div style='
+                            color: #FF6B6B;
+                            font-weight: bold;
+                            margin-bottom: 8px;
+                            font-size: 14px;
+                        '>{point_name}</div>
+                        <div style='margin-bottom: 4px;'>
+                            <span style='color: #999;'>Lat:</span>
+                            <span style='font-family: monospace;'>{lat:.6f}</span>
+                        </div>
+                        <div>
+                            <span style='color: #999;'>Lng:</span>
+                            <span style='font-family: monospace;'>{lng:.6f}</span>
+                        </div>
+                    </div>
+                    """,
+                    max_width=200,
+                ),
+                tooltip=folium.Tooltip(
+                    point_name,
+                    permanent=False,
+                    sticky=True,
+                    style="""
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        font-size: 12px;
+                        font-weight: bold;
+                        color: white;
+                        background-color: rgba(255, 107, 107, 0.9);
+                        border: 1px solid white;
+                        border-radius: 4px;
+                        padding: 4px 8px;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                    """,
+                ),
+            ).add_to(points_group)
+
+        points_group.add_to(m)
+
+    def add_shortest_path(self, m: folium.Map, path_coords: List[List[float]]) -> None:
+        """
+        Add shortest path polyline to the map.
+
+        Parameters
+        ----------
+        m : folium.Map
+            Map to add path to
+        path_coords : List[List[float]]
+            List of [lat, lng] coordinates for the path
+        """
+        if not path_coords:
+            return
+
+        path_group = folium.FeatureGroup(name="Shortest Path", show=True)
+
+        folium.PolyLine(
+            locations=path_coords,
+            color="#00FF00",
+            weight=6,
+            opacity=0.8,
+            popup="Shortest Path via Road Network",
+        ).add_to(path_group)
+
+        path_group.add_to(m)
+
     def add_point_markers(self, m: folium.Map, points: List[Dict[str, float]]) -> None:
         """
         Add point markers to the map.
@@ -138,6 +277,9 @@ class MapHandler:
         points : List[Dict[str, float]]
             List of point dictionaries with 'lat' and 'lng' keys
         """
+        if not points:
+            return
+
         colors = ["#FF6B6B", "#4ECDC4"]
         labels = ["Point 1", "Point 2"]
         marker_group = folium.FeatureGroup(name="Markers", show=True)
@@ -198,17 +340,34 @@ class MapHandler:
         marker_group.add_to(m)
 
     def create_complete_map(
-        self, gdf: gpd.GeoDataFrame, selected_points: List[Dict[str, float]]
+        self,
+        route_gdf: gpd.GeoDataFrame = None,
+        kml_points: gpd.GeoDataFrame = None,
+        selected_points: List[Dict[str, float]] = None,
+        shortest_path_coords: List[List[float]] = None,
+        show_route: bool = True,
+        show_kml_points: bool = False,
+        show_shortest_path: bool = False,
     ) -> folium.Map:
         """
-        Create a complete map with route data and point markers.
+        Create a complete map with optional route data, KML points, selected points, and shortest path.
 
         Parameters
         ----------
-        gdf : gpd.GeoDataFrame
-            GeoDataFrame containing route data
-        selected_points : List[Dict[str, float]]
+        route_gdf : gpd.GeoDataFrame, optional
+            GeoDataFrame containing route linestring data
+        kml_points : gpd.GeoDataFrame, optional
+            GeoDataFrame containing KML point data
+        selected_points : List[Dict[str, float]], optional
             List of selected points
+        shortest_path_coords : List[List[float]], optional
+            Coordinates for the shortest path
+        show_route : bool, default True
+            Whether to show the route linestring
+        show_kml_points : bool, default False
+            Whether to show KML points
+        show_shortest_path : bool, default False
+            Whether to show the shortest path
 
         Returns
         -------
@@ -216,7 +375,23 @@ class MapHandler:
             Complete map ready for display
         """
         m = self.create_base_map()
-        self.add_route_data(m, gdf)
-        self.add_point_markers(m, selected_points)
+
+        # Add route linestring if enabled and data provided
+        if show_route and route_gdf is not None:
+            self.add_route_data(m, route_gdf)
+
+        # Add KML points if enabled and data provided
+        if show_kml_points and kml_points is not None:
+            self.add_kml_points(m, kml_points)
+
+        # Add selected point markers if provided
+        if selected_points:
+            self.add_point_markers(m, selected_points)
+
+        # Add shortest path if enabled and coordinates provided
+        if show_shortest_path and shortest_path_coords:
+            self.add_shortest_path(m, shortest_path_coords)
+
+        # Fit bounds to the bounding box
         m.fit_bounds([[self.south, self.west], [self.north, self.east]], padding=(0, 0))
         return m

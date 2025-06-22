@@ -12,8 +12,11 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import folium
 import geopandas as gpd
+import networkx as nx
+import osmnx as ox
 from features.calculations import GeoCalculations
 from features.map_handler import MapHandler
+from features.path_calculator import PathCalculator
 from features.ui_components import ClickHandler, UIComponents
 
 from src.data_processing.process_subject_pipeline import ProcessSubjectPipeline
@@ -79,6 +82,8 @@ if "last_click_id" not in st.session_state:
     st.session_state.last_click_id = None
 if "click_update" not in st.session_state:
     st.session_state.click_update = False
+if "show_path" not in st.session_state:
+    st.session_state.show_path = False
 
 
 @st.cache_resource
@@ -86,17 +91,33 @@ def get_pipeline():
     return ProcessSubjectPipeline(BBOX)
 
 
-pipeline = get_pipeline()
-loader = pipeline.extractor.loader
+@st.cache_resource
+def load_route_data():
+    """Load and separate KML route data."""
+    pipeline = get_pipeline()
+    loader = pipeline.extractor.loader
+    gdf = loader.extract_kml(PROJECT_ROOT / "data" / "raw_data" / "route.kmz")
+    gdf = gdf.to_crs(epsg=4326)
+
+    # Separate linestrings and points
+    linestrings = gdf[gdf.geometry.geom_type == "LineString"].copy()
+    points = gdf[gdf.geometry.geom_type == "Point"].copy()
+
+    return linestrings, points, loader
 
 
 @st.cache_resource
-def load_route_data():
-    gdf = loader.extract_kml(PROJECT_ROOT / "data" / "raw_data" / "route.kmz")
-    return gdf.to_crs(epsg=4326)
+def get_path_calculator():
+    """Load and cache the path calculator with graph data."""
+    _, _, loader = load_route_data()
+    nodes = loader.get_source("nodes")
+    edges = loader.get_source("imputed_edges")
+    return PathCalculator(nodes, edges)
 
 
-gdf = load_route_data()
+# Load data
+linestrings, kml_points, loader = load_route_data()
+path_calculator = get_path_calculator()
 map_handler = MapHandler(BBOX)
 
 # Prepare UI layout
@@ -118,7 +139,7 @@ osm_layer_options = {
     },
     "Smoking Shop": {
         "tags": {"shop": True},
-        "color": "#ff7f0e",
+        "color": "#ffdb0e",
     },
     "Chimney": {
         "tags": {"man_made": True},
@@ -151,18 +172,67 @@ with left_col:
                 """
             )
 
-    if st.button("🗑️ Clear All Points", type="secondary"):
-        st.session_state.selected_points = []
-        st.session_state.last_click_id = None
-        st.session_state.click_update = False
-        st.rerun()
+    # Buttons row
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🗑️ Clear Points", type="secondary"):
+            st.session_state.selected_points = []
+            st.session_state.last_click_id = None
+            st.session_state.click_update = False
+            st.session_state.show_path = False  # Clear path when clearing points
+            st.rerun()
 
-    st.markdown("### 🗂️ Show OSM Layers")
+    with col2:
+        if len(st.session_state.selected_points) == 2:
+            if st.button("🛣️ Show Path", type="primary", key="show_path_button"):
+                st.session_state.show_path = True
+                st.rerun()
+        else:
+            st.button(
+                "🛣️ Show Path",
+                type="secondary",
+                disabled=True,
+                help="Select 2 points first",
+            )
+
+    # Show path status
+    if st.session_state.show_path and len(st.session_state.selected_points) == 2:
+        st.success("🛣️ Shortest path is displayed")
+    elif st.session_state.show_path:
+        st.session_state.show_path = False  # Reset if points were cleared elsewhere
+
+    st.markdown("### 🗂️ Show Layers")
+
+    # Route toggle options
+    show_route_linestring = st.checkbox(
+        "Show Route LineString", value=True, key="show_route"
+    )
+
+    st.markdown("**OSM Layers:**")
     layer_dataframes = {}
     layer_colors = {}
 
     for label, config in osm_layer_options.items():
-        if st.checkbox(label, key=f"layer_{label}"):
+        col1, col2 = st.columns([0.7, 0.3])
+        with col1:
+            layer_enabled = st.checkbox(label, key=f"layer_{label}")
+        with col2:
+            # Color indicator
+            st.markdown(
+                f"""
+                <div style="
+                    width: 20px;
+                    height: 20px;
+                    background-color: {config['color']};
+                    border-radius: 3px;
+                    margin-top: 4px;
+                    border: 1px solid #ddd;
+                "></div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        if layer_enabled:
             gdf_layer = loader.get_source(config["tags"]).to_crs(epsg=4326)
             layer_dataframes[label] = gdf_layer
             layer_colors[label] = config["color"]
@@ -171,10 +241,34 @@ with left_col:
 with center_col:
     map_width = 640
     map_height = int(map_width / aspect_ratio)
-    m = map_handler.create_base_map()
-    map_handler.add_route_data(m, gdf, show_bbox=False)
-    map_handler.add_point_markers(m, st.session_state.selected_points)
 
+    # Calculate shortest path if needed
+    shortest_path_coords = None
+    if st.session_state.show_path and len(st.session_state.selected_points) == 2:
+        shortest_path_coords = path_calculator.calculate_shortest_path(
+            st.session_state.selected_points[0], st.session_state.selected_points[1]
+        )
+
+    # Create base map
+    m = map_handler.create_base_map()
+
+    # Add route linestring if enabled
+    if show_route_linestring and not linestrings.empty:
+        map_handler.add_route_data(m, linestrings, show_bbox=False)
+
+    # Always add KML points (they're always visible now)
+    if not kml_points.empty:
+        map_handler.add_kml_points(m, kml_points)
+
+    # Add selected point markers
+    if st.session_state.selected_points:
+        map_handler.add_point_markers(m, st.session_state.selected_points)
+
+    # Add shortest path if enabled and available
+    if st.session_state.show_path and shortest_path_coords:
+        map_handler.add_shortest_path(m, shortest_path_coords)
+
+    # Add OSM layers
     for label, gdf_layer in layer_dataframes.items():
         color = layer_colors.get(label, "orange")
         for _, row in gdf_layer.iterrows():
@@ -206,6 +300,7 @@ with center_col:
                     },
                 ).add_to(m)
 
+    # Add invisible rectangle for click handling
     folium.Rectangle(
         bounds=[[SOUTH, WEST], [NORTH, EAST]],
         color="transparent",
@@ -224,6 +319,7 @@ with center_col:
         returned_objects=["last_object_clicked", "bounds"],
     )
 
+    # Handle map clicks (ignore clicks on KML points)
     if map_data and "last_object_clicked" in map_data:
         clicked = map_data["last_object_clicked"]
         if (
@@ -231,11 +327,27 @@ with center_col:
             and isinstance(clicked, dict)
             and "lat" in clicked
             and "lng" in clicked
-            and clicked.get("popup") is None
+            and clicked.get("popup") is None  # Only handle clicks without popups
         ):
             lat, lng = clicked["lat"], clicked["lng"]
             click_id = f"{lat:.6f},{lng:.6f}"
-            if click_id != st.session_state.last_click_id:
+
+            # Check if click is too close to any KML point (to avoid conflicts)
+            too_close_to_kml = False
+            if not kml_points.empty:
+                for _, kml_point in kml_points.iterrows():
+                    kml_lat, kml_lng = kml_point.geometry.y, kml_point.geometry.x
+                    # Calculate distance in meters (rough approximation)
+                    lat_diff = abs(lat - kml_lat) * 111000  # degrees to meters
+                    lng_diff = (
+                        abs(lng - kml_lng) * 111000 * abs(kml_lat / 90)
+                    )  # adjust for latitude
+                    distance = (lat_diff**2 + lng_diff**2) ** 0.5
+                    if distance < 50:  # Within 50 meters of KML point
+                        too_close_to_kml = True
+                        break
+
+            if click_id != st.session_state.last_click_id and not too_close_to_kml:
                 st.session_state.last_click_id = click_id
                 if SOUTH <= lat <= NORTH and WEST <= lng <= EAST:
                     new_point = {"lat": lat, "lng": lng}
@@ -263,6 +375,8 @@ with right_col:
 
     if len(st.session_state.selected_points) == 2:
         point1, point2 = st.session_state.selected_points
+
+        # Direct distance calculations
         distance_km = GeoCalculations.calculate_distance(
             point1["lat"], point1["lng"], point2["lat"], point2["lng"]
         )
@@ -272,10 +386,25 @@ with right_col:
         distance_miles = distance_km * 0.621371
         cardinal_direction = GeoCalculations.get_cardinal_direction(bearing)
 
-        st.metric("🏃 Distance", f"{distance_km:.3f} km")
+        st.metric("🏃 Direct Distance", f"{distance_km:.3f} km")
         st.metric("📐 Bearing", f"{bearing:.1f}°")
-        st.metric("🏃 Distance", f"{distance_miles:.3f} mi")
+        st.metric("🏃 Direct Distance", f"{distance_miles:.3f} mi")
         st.metric("🧭 Direction", cardinal_direction)
+
+        # Path calculations if shortest path is enabled
+        if st.session_state.show_path:
+            path_metrics = path_calculator.get_path_metrics(point1, point2)
+
+            if path_metrics["path_exists"]:
+                st.metric(
+                    "🛣️ Path Distance", f"{path_metrics['path_distance_km']:.3f} km"
+                )
+                st.metric(
+                    "🛣️ Path Distance", f"{path_metrics['path_distance_miles']:.3f} mi"
+                )
+                st.metric("📈 Detour Factor", f"{path_metrics['detour_factor']:.2f}x")
+            else:
+                st.warning("⚠️ No path found between points")
 
         with st.expander("📋 Details"):
             delta_lat = abs(point2["lat"] - point1["lat"])
@@ -287,5 +416,16 @@ with right_col:
             st.write(f"📏 Δ Lat: {delta_lat:.6f}°")
             st.write(f"📏 Δ Lng: {delta_lng:.6f}°")
             st.write(f"🎯 Midpoint: ({mid_lat:.6f}, {mid_lng:.6f})")
+
+            if st.session_state.show_path and path_metrics["path_exists"]:
+                st.write("**Path Analysis:**")
+                st.write(f"🛣️ Path length: {path_metrics['path_distance_km']:.3f} km")
+                st.write(
+                    f"✈️ Direct distance: {path_metrics['direct_distance_km']:.3f} km"
+                )
+                st.write(
+                    f"📈 Extra distance: {(path_metrics['path_distance_km'] - path_metrics['direct_distance_km']):.3f} km"
+                )
+
     else:
         st.info("🎯 Select 2 points to see calculations")
