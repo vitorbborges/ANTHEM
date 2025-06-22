@@ -28,6 +28,9 @@ import toml
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig
 from tqdm.auto import tqdm
+import geopandas as gpd
+from scipy.io import loadmat
+from scipy.interpolate import interp1d
 
 # ensure project root is on sys.path so that 'src' modules can be imported
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -51,6 +54,8 @@ class ProcessSubjectPipeline:
         self.extractor = SpatialFeatureExtractor(self.loader)
         self.specs_file = CONFIG_TOML
 
+
+    
     def run(self, subject_id: int, job_id: int = 0) -> pd.DataFrame:
         # Use absolute paths based on PROJECT_ROOT so Hydra's working dir doesn't break us
         raw_dir = PROJECT_ROOT / "data" / "raw_data"
@@ -62,51 +67,83 @@ class ProcessSubjectPipeline:
         # Extract route and sensor segments
         kml = self.extractor.loader.extract_kml(raw_dir / "route.kmz")
         segments = self.extractor.loader.build_segments(kml)
+        
         static_df = self.extractor.extract_static(data, kml)
+
+        segment_points = segments['geometry'][1:]
+
+        INTERPOLATION_METERS = 5
+
         dynamic_df = self.extractor.extract_dynamic(data, segments)
-        # TODO: remove the "segments" parameter from extract_dynamics()
-        # TODO: delete the todo comments after finished to debloat the code
+        df_resampled_measure = pd.DataFrame(columns = ['x', 'y', 'CO2' , 'location' , 'regime' , 'sub'])
 
-        df = pd.concat([static_df, dynamic_df]).sort_index()
+        # Add lenght in the segments in order to knowing the ratio between true mesurements
+        # and interpolated 
+        gdf = gpd.GeoDataFrame(geometry=segments['geometry'].values)
+        gdf.set_crs(epsg=4326, inplace=True)  # WGS84 (lat/lon)
+        segments['length_m'] = gdf.to_crs(epsg=32632).geometry.length
+        
 
-        # Timestamp adjustment
-        base = pd.Timestamp("2022-11-11") + pd.Timedelta(days=subject_id - 1)
-        df.index = base + pd.to_timedelta(df.index.astype(str))
+        sd = dynamic_df.merge(
+                    segments[['location','geometry']],
+                    on='location',
+                    how='left'
+            )
+        sd['sample_pt'] = None # column for the intepolated signal
 
-        # Feature computation
-        entries = toml.load(self.specs_file).get("features", [])
-        with tqdm(
-            entries,
-            desc=f"S{subject_id} features",
-            unit="feat",
-            dynamic_ncols=True,
-            position=job_id + 1,
-            leave=False,
-        ) as feat_bar:
-            for feature in feat_bar:
-                prefix = feature["prefix"]
-                feat_bar.set_postfix_str(prefix, refresh=False)
-                fn = getattr(self.extractor, f"add_{feature['mode']}")
-                df = fn(
-                    df,
-                    prefix,
-                    feature["source"],
-                    feature.get("radii", []),
-                    feature.get("column"),
-                    feature.get("values", []),
-                )
+        print(sd.head())
 
-        # Optional weather
-        wdirs = list((raw_dir).glob("RW_*"))
-        if wdirs:
-            meta = WeatherProcessor.parse_metadata(wdirs[0])
-            raww = WeatherProcessor.read_raw(wdirs[0], meta)
-            df = df.join(WeatherProcessor.interpolate(raww), how="left")
+        ## start interpolation
+        for loc, group in sd.groupby('location'):
 
-        # Write output
+            values = group["CO2"].to_numpy()
+            n_measured_points = group.shape[0]
+            length_of_segment = int(np.floor(segments[segments['location']==loc]['length_m'].values[0]))  
+            n_interpolated_points   = int(np.floor(length_of_segment//INTERPOLATION_METERS ))
+
+            print(f"subj = {subject_id} location ={loc} n.points = {n_measured_points} length={length_of_segment} N_points={n_interpolated_points}")
+            
+            
+            seg = group.geometry.iloc[0]         # the LineString for this location
+            L   = seg.length                     # its total length
+            dists = np.linspace(0, L, n_interpolated_points) # linaspace of equally distanced points
+
+            intepolated_pts = [seg.interpolate(d) for d in dists]
+            df_interpolated_coords = pd.DataFrame([(p.x, p.y) for p in intepolated_pts], columns=['x', 'y'])
+            interpolated_data = {}
+
+            kind = 'cubic' if n_measured_points >= 4 else 'linear'
+
+            old_idx = np.linspace(0, n_measured_points - 1, num=n_measured_points)
+            new_idx = np.linspace(0, n_measured_points - 1, num=n_interpolated_points)
+
+            f_interp = interp1d(old_idx, values, kind=kind, bounds_error=False, fill_value="extrapolate")
+            f_interp= f_interp(new_idx)
+
+
+            tmp = pd.DataFrame({
+                'x': df_interpolated_coords['x'],
+                'y': df_interpolated_coords['y'],
+                'CO2': f_interp,
+                'location': [loc] * len(f_interp),
+                'regime': [group['regime'].iloc[0]] * len(f_interp),
+                'sub': subject_id* len(f_interp),
+            })
+
+            df_resampled_measure = pd.concat([df_resampled_measure, tmp], ignore_index=True)
+            print(df_resampled_measure.head())
+
+
+        # TODO: it is just the resampling without the osmx and static data, in prder to works
+        # with previous model I guess that should be concatened with segments and also with 
+        # with static, i'M REALLY SRY but I have to spend more time in order to understand
+        # how to navigate in this prohject structure so I'll go further on Colab and I'll merge
+        # with the app in the end
         out_dir.mkdir(parents=True, exist_ok=True)
-        df.to_parquet(out_dir / f"S{subject_id}-coords.parquet")
-        return df
+        df_resampled_measure.to_parquet(out_dir / f"S{subject_id}-coords.parquet")
+        return df_resampled_measure
+
+
 
 
 # Hydra entrypoint: multi-run config
@@ -125,6 +162,7 @@ def hydra_main(cfg: DictConfig):
     subject_id = cfg.get("subject")
     if subject_id is not None:
         pipeline.run(int(subject_id), job_id=job_id)
+
 
 
 # CLI entrypoint for argparse
