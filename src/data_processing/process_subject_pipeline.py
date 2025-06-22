@@ -49,6 +49,7 @@ class ProcessSubjectPipeline:
         self.bbox = bbox
         self.loader = SpatialDataLoader(bbox)
         self.extractor = SpatialFeatureExtractor(self.loader)
+        self.weather_processor = WeatherProcessor
         self.specs_file = CONFIG_TOML
 
     def run(self, subject_id: int, job_id: int = 0) -> pd.DataFrame:
@@ -99,9 +100,9 @@ class ProcessSubjectPipeline:
         # Optional weather
         wdirs = list((raw_dir).glob("RW_*"))
         if wdirs:
-            meta = WeatherProcessor.parse_metadata(wdirs[0])
-            raww = WeatherProcessor.read_raw(wdirs[0], meta)
-            df = df.join(WeatherProcessor.interpolate(raww), how="left")
+            meta = self.weather_processor.parse_metadata(wdirs[0])
+            raww = self.weather_processor.read_raw(wdirs[0], meta)
+            df = df.join(self.weather_processor.interpolate(raww), how="left")
 
         # Write output
         out_dir.mkdir(parents=True, exist_ok=True)
