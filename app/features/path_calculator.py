@@ -3,7 +3,8 @@ from typing import Dict, List, Optional, Tuple
 import geopandas as gpd
 import networkx as nx
 import osmnx as ox
-from features.calculations import GeoCalculations
+
+from app.features.calculations import GeoCalculations
 
 
 class PathCalculator:
