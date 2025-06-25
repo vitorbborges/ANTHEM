@@ -148,9 +148,10 @@ class FeatureImputer:
             numerical_cols = ["length", "lanes", "maxspeed"]
 
         # Combine all input columns
-        input_cols = categorical_cols + bool_cols + numerical_cols
+        imputable_cols = categorical_cols + bool_cols + numerical_cols
         edges_copy = edges.copy()
-        X = edges_copy[input_cols].copy()
+        X = edges_copy[imputable_cols].copy()
+
         # Identify rows corresponding to footway-like highways
         mask_foot = X["highway"].isin(
             [
@@ -163,23 +164,39 @@ class FeatureImputer:
             ]
         )
         # Encode categorical and boolean columns to ordinal codes
+        encoded_cols = categorical_cols + bool_cols
         enc = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)
-        X[categorical_cols + bool_cols] = enc.fit_transform(
-            X[categorical_cols + bool_cols]
-        )
+        X[encoded_cols] = enc.fit_transform(X[encoded_cols])
+
         # Impute missing values using MICE
         imp = IterativeImputer(max_iter=max_iter, random_state=random_state)
         X_imputed = pd.DataFrame(
-            imp.fit_transform(X), columns=input_cols, index=X.index
+            imp.fit_transform(X), columns=imputable_cols, index=X.index
         )
+
         # Ensure numeric columns are non-negative
         for col in numerical_cols:
             X_imputed[col] = X_imputed[col].clip(lower=0)
+
         # Restore NaNs for footways in lanes and maxspeed
         X_imputed.loc[mask_foot, ["lanes", "maxspeed"]] = np.nan
+
         # Decode ordinal codes back to original labels
-        codes = X_imputed[categorical_cols + bool_cols].round().astype(int)
-        X_imputed[categorical_cols + bool_cols] = enc.inverse_transform(codes)
+        codes = X_imputed[encoded_cols].round().astype(int)
+
+        # *** FIX START ***
+        # Clip the imputed codes to the valid range of categories learned by the encoder.
+        # This prevents an IndexError in inverse_transform if the imputer predicts a
+        # value outside the range of the original category codes.
+        for i, col in enumerate(encoded_cols):
+            num_categories = len(enc.categories_[i])
+            codes[col] = codes[col].clip(0, num_categories - 1)
+        # *** FIX END ***
+
+        # Perform the inverse transformation with the cleaned codes
+        X_imputed[encoded_cols] = enc.inverse_transform(codes)
+
         # Reattach non-input columns unchanged
         result = pd.concat([edges_copy[non_input_cols], X_imputed], axis=1)
+
         return result
