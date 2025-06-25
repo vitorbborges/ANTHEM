@@ -1,9 +1,6 @@
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from fancyimpute import SoftImpute
-from sklearn.impute import IterativeImputer
-from sklearn.preprocessing import OrdinalEncoder
 
 
 class FeatureImputer:
@@ -14,6 +11,11 @@ class FeatureImputer:
     - impute_gdf: soft-matrix completion for spatial attribute tables.
     - impute_edges: MICE-based imputation for graph edge attributes.
     """
+
+    def __init__(self) -> None:
+        from fancyimpute import SoftImpute
+        from sklearn.impute import IterativeImputer
+        from sklearn.preprocessing import OrdinalEncoder
 
     @staticmethod
     def impute_gdf(
