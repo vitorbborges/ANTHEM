@@ -1,3 +1,5 @@
+import hashlib
+import json
 import tempfile
 import zipfile
 from pathlib import Path
@@ -74,7 +76,7 @@ class SpatialDataLoader:
         Returns
         -------
         gpd.GeoDataFrame
-            The requested spatial data frame, loaded and cached on first call.
+            The requested spatial data frame, loaded and cached.
 
         Raises
         ------
@@ -83,28 +85,49 @@ class SpatialDataLoader:
         TypeError
             If key is neither str nor dict.
         """
+
+        def stable_tag_hash(d: Dict[str, Any]) -> str:
+            """Create a deterministic hash from a tag dictionary."""
+            canon = json.dumps(d, sort_keys=True)
+            return hashlib.md5(canon.encode()).hexdigest()
+
         if isinstance(key, str):
-            # Lookup by named loader
             if key not in self._named_loaders:
                 raise KeyError(f"Unknown named source: {key}")
             if key not in self._source_cache:
-                # Call loader to populate cache
                 self._source_cache[key] = self._named_loaders[key]()
             return self._source_cache[key]
 
-        if isinstance(key, dict):
-            # Convert tag dict into an immutable key
+        elif isinstance(key, dict):
             tagkey = frozenset(
                 (k, tuple(v) if isinstance(v, (list, tuple)) else v)
                 for k, v in key.items()
             )
-            if tagkey not in self._source_cache:
-                # Query OSM features for the bounding box
-                self._source_cache[tagkey] = features_from_bbox(self.bbox, key)
-            return self._source_cache[tagkey]
 
-        # Invalid key type
-        raise TypeError("key must be a string or dict of OSM tags")
+            # Determine cache path
+            taghash = stable_tag_hash(key)
+            cache_dir = Path(__file__).parent / "osmnx_cache"
+            cache_dir.mkdir(exist_ok=True)
+            file_path = cache_dir / f"tag_{taghash}.parquet"
+
+            # Return from memory cache
+            if tagkey in self._source_cache:
+                return self._source_cache[tagkey]
+
+            # Return from disk cache
+            if file_path.exists():
+                gdf = gpd.read_parquet(file_path)
+                self._source_cache[tagkey] = gdf
+                return gdf
+
+            # Otherwise, fetch from OSM, cache to disk and memory
+            gdf = features_from_bbox(self.bbox, key)
+            gdf.to_parquet(file_path)
+            self._source_cache[tagkey] = gdf
+            return gdf
+
+        else:
+            raise TypeError("key must be a string or dict of OSM tags")
 
     def _load_graph(self) -> None:
         """

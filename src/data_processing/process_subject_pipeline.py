@@ -52,6 +52,7 @@ class ProcessSubjectPipeline:
         self.bbox = bbox
         self.loader = SpatialDataLoader(bbox)
         self.extractor = SpatialFeatureExtractor(self.loader)
+        self.weather_processor = WeatherProcessor
         self.specs_file = CONFIG_TOML
 
 
