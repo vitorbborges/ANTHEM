@@ -9,7 +9,7 @@ from app.core.config import AppConfig
 from app.features.path_calculator import PathCalculator
 
 # Import your existing pipeline
-from src.data_processing.process_subject_pipeline import ProcessSubjectPipeline
+from src.data_processing.spatial_data_loader import SpatialDataLoader
 
 
 class DataService:
@@ -17,21 +17,13 @@ class DataService:
 
     def __init__(self, config: AppConfig):
         self.config = config
-        self._pipeline = None
         self._loader = None
-
-    @property
-    def pipeline(self):
-        """Lazy-loaded pipeline."""
-        if self._pipeline is None:
-            self._pipeline = ProcessSubjectPipeline(self.config.bbox.bbox_tuple)
-        return self._pipeline
 
     @property
     def loader(self):
         """Lazy-loaded data loader."""
         if self._loader is None:
-            self._loader = self.pipeline.extractor.loader
+            self._loader = SpatialDataLoader(self.config.bbox.bbox_tuple)
         return self._loader
 
     @st.cache_resource

@@ -1,2 +1,4 @@
 
 streamlit_folium
+geopandas
+osmnx
