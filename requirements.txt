@@ -3,4 +3,4 @@ streamlit_folium
 geopandas
 osmnx
 fancyimput
-sklearn
+scikit-learn
