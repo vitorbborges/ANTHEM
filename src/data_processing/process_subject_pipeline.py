@@ -20,6 +20,7 @@ import argparse
 import sys
 from pathlib import Path
 
+import geopandas as gpd
 import hydra
 import numpy as np
 import osmnx as ox
@@ -28,9 +29,6 @@ import toml
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig
 from tqdm.auto import tqdm
-import geopandas as gpd
-from scipy.io import loadmat
-from scipy.interpolate import interp1d
 
 # ensure project root is on sys.path so that 'src' modules can be imported
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -48,6 +46,15 @@ BBOX = (WEST, SOUTH, EAST, NORTH)
 
 
 class ProcessSubjectPipeline:
+    """
+    Orchestrator for processing a single subject's data through:
+      1. Loading raw GPS and route (KML/KMZ) data,
+      2. Extracting static and dynamic spatial features with resampling,
+      3. Applying TOML-defined feature specifications,
+      4. Optionally joining weather observations,
+      5. Saving the processed DataFrame.
+    """
+
     def __init__(self, bbox: tuple):
         self.bbox = bbox
         self.loader = SpatialDataLoader(bbox)
@@ -55,96 +62,115 @@ class ProcessSubjectPipeline:
         self.weather_processor = WeatherProcessor
         self.specs_file = CONFIG_TOML
 
-
-    
     def run(self, subject_id: int, job_id: int = 0) -> pd.DataFrame:
         # Use absolute paths based on PROJECT_ROOT so Hydra's working dir doesn't break us
         raw_dir = PROJECT_ROOT / "data" / "raw_data"
         out_dir = PROJECT_ROOT / "data" / "processed_data"
 
+        # Load raw subject measurements and tag with subject_id
         data = load_subject(subject_id)
         data["subject_id"] = subject_id
 
-        # Extract route and sensor segments
+        # Extract route and sensor segments using the loader
         kml = self.extractor.loader.extract_kml(raw_dir / "route.kmz")
         segments = self.extractor.loader.build_segments(kml)
-        
+
+        # Extract static points (fixed measurement locations)
         static_df = self.extractor.extract_static(data, kml)
 
-        segment_points = segments['geometry'][1:]
+        # Extract dynamic points with resampling using the updated method
+        dynamic_df = self.extractor.extract_dynamic(
+            data, segments, interpolation_meters=5
+        )
 
-        INTERPOLATION_METERS = 5
+        # Combine static + dynamic and sort by original index if available
+        if not static_df.empty and not dynamic_df.empty:
+            # For dynamic data, we need to create appropriate indices
+            # Use a simple incrementing index starting after static data
+            if hasattr(static_df, "index") and len(static_df.index) > 0:
+                max_static_idx = static_df.index.max()
+                dynamic_df.index = range(
+                    max_static_idx + 1, max_static_idx + 1 + len(dynamic_df)
+                )
 
-        dynamic_df = self.extractor.extract_dynamic(data, segments)
-        df_resampled_measure = pd.DataFrame(columns = ['x', 'y', 'CO2' , 'location' , 'regime' , 'sub'])
-
-        # Add lenght in the segments in order to knowing the ratio between true mesurements
-        # and interpolated 
-        gdf = gpd.GeoDataFrame(geometry=segments['geometry'].values)
-        gdf.set_crs(epsg=4326, inplace=True)  # WGS84 (lat/lon)
-        segments['length_m'] = gdf.to_crs(epsg=32632).geometry.length
-        
-
-        sd = dynamic_df.merge(
-                    segments[['location','geometry']],
-                    on='location',
-                    how='left'
+            df = pd.concat([static_df, dynamic_df]).sort_index()
+        elif not static_df.empty:
+            df = static_df
+        elif not dynamic_df.empty:
+            df = dynamic_df
+        else:
+            # If both are empty, create an empty DataFrame with required columns
+            df = pd.DataFrame(
+                columns=["x", "y", "CO2", "location", "regime", "subject_id"]
             )
-        sd['sample_pt'] = None # column for the intepolated signal
 
-        print(sd.head())
+        # If DataFrame is empty, save empty result and return
+        if df.empty:
+            out_dir.mkdir(parents=True, exist_ok=True)
+            df.to_parquet(out_dir / f"S{subject_id}-coords.parquet")
+            return df
 
-        ## start interpolation
-        for loc, group in sd.groupby('location'):
+        # Convert integer index to timestamps based on a base date + subject offset
+        base = pd.Timestamp("2022-11-11") + pd.Timedelta(days=subject_id - 1)
+        df.index = base + pd.to_timedelta(df.index.astype(str))
 
-            values = group["CO2"].to_numpy()
-            n_measured_points = group.shape[0]
-            length_of_segment = int(np.floor(segments[segments['location']==loc]['length_m'].values[0]))  
-            n_interpolated_points   = int(np.floor(length_of_segment//INTERPOLATION_METERS ))
+        # Load feature specifications from TOML file if it exists
+        if self.specs_file.exists():
+            entries = toml.load(self.specs_file).get("features", [])
 
-            print(f"subj = {subject_id} location ={loc} n.points = {n_measured_points} length={length_of_segment} N_points={n_interpolated_points}")
-            
-            
-            seg = group.geometry.iloc[0]         # the LineString for this location
-            L   = seg.length                     # its total length
-            dists = np.linspace(0, L, n_interpolated_points) # linaspace of equally distanced points
+            # Compute each feature with an inner progress bar
+            with tqdm(
+                entries,
+                desc=f"S{subject_id} features",
+                unit="feat",
+                dynamic_ncols=True,
+                position=1,
+                leave=False,
+            ) as feat_bar:
+                for feature in feat_bar:
+                    prefix = feature["prefix"]
+                    feat_bar.set_postfix_str(prefix, refresh=False)
 
-            intepolated_pts = [seg.interpolate(d) for d in dists]
-            df_interpolated_coords = pd.DataFrame([(p.x, p.y) for p in intepolated_pts], columns=['x', 'y'])
-            interpolated_data = {}
+                    # Dynamically call add_proximity, add_sum, add_mean, etc.
+                    mode = feature.get("mode", "proximity")
+                    if hasattr(self.extractor, f"add_{mode}"):
+                        fn = getattr(self.extractor, f"add_{mode}")
+                        try:
+                            df = fn(
+                                df,
+                                prefix,
+                                feature["source"],
+                                feature.get("radii", []),
+                                feature.get("column"),
+                                feature.get("values", []),
+                            )
+                        except Exception as e:
+                            print(
+                                f"Warning: Failed to compute feature {prefix} with mode {mode}: {e}"
+                            )
+                            continue
+                    else:
+                        print(
+                            f"Warning: Unknown feature mode '{mode}' for feature '{prefix}'"
+                        )
 
-            kind = 'cubic' if n_measured_points >= 4 else 'linear'
+        # If weather raw directories exist, parse and interpolate weather data
+        wdirs = list(raw_dir.glob("RW_*"))
+        if wdirs:
+            try:
+                meta = WeatherProcessor.parse_metadata(wdirs[0])
+                raww = WeatherProcessor.read_raw(wdirs[0], meta)
+                weather_data = WeatherProcessor.interpolate(raww)
+                df = df.join(weather_data, how="left")
+            except Exception as e:
+                print(
+                    f"Warning: Failed to process weather data for subject {subject_id}: {e}"
+                )
 
-            old_idx = np.linspace(0, n_measured_points - 1, num=n_measured_points)
-            new_idx = np.linspace(0, n_measured_points - 1, num=n_interpolated_points)
-
-            f_interp = interp1d(old_idx, values, kind=kind, bounds_error=False, fill_value="extrapolate")
-            f_interp= f_interp(new_idx)
-
-
-            tmp = pd.DataFrame({
-                'x': df_interpolated_coords['x'],
-                'y': df_interpolated_coords['y'],
-                'CO2': f_interp,
-                'location': [loc] * len(f_interp),
-                'regime': [group['regime'].iloc[0]] * len(f_interp),
-                'sub': subject_id* len(f_interp),
-            })
-
-            df_resampled_measure = pd.concat([df_resampled_measure, tmp], ignore_index=True)
-            print(df_resampled_measure.head())
-
-
-        # TODO: it is just the resampling without the osmx and static data, in prder to works
-        # with previous model I guess that should be concatened with segments and also with 
-        # with static, i'M REALLY SRY but I have to spend more time in order to understand
-        # how to navigate in this prohject structure so I'll go further on Colab and I'll merge
-        # with the app in the end
+        # Ensure output directory exists and write parquet file
         out_dir.mkdir(parents=True, exist_ok=True)
-        df_resampled_measure.to_parquet(out_dir / f"S{subject_id}-coords.parquet")
-        return df_resampled_measure
-
-
+        df.to_parquet(out_dir / f"S{subject_id}-coords.parquet")
+        return df
 
 
 # Hydra entrypoint: multi-run config
@@ -165,7 +191,6 @@ def hydra_main(cfg: DictConfig):
         pipeline.run(int(subject_id), job_id=job_id)
 
 
-
 # CLI entrypoint for argparse
 def cli_main():
     parser = argparse.ArgumentParser(description="Process one or many subjects' data")
@@ -174,8 +199,18 @@ def cli_main():
 
     pipeline = ProcessSubjectPipeline(BBOX)
     subjects = [args.subject] if args.subject else list(range(1, 21))
-    for subject_id in subjects:
-        pipeline.run(subject_id)
+
+    # Outer progress bar over subjects
+    with tqdm(
+        subjects,
+        desc="All Subjects",
+        unit="subj",
+        dynamic_ncols=True,
+        position=0,
+    ) as subj_bar:
+        for subject_id in subj_bar:
+            subj_bar.set_postfix_str(f"S{subject_id}", refresh=False)
+            pipeline.run(subject_id)
 
 
 if __name__ == "__main__":
@@ -185,33 +220,34 @@ if __name__ == "__main__":
     else:
         cli_main()
 
-import os
+    # --- START: MODIFIED SECTION FOR WARNING SUPPRESSION ---
+    import os
 
-# -----------------------------------------------------------------------------
-# Data concatenation and cleanup for combined_subjects.parquet
-# -----------------------------------------------------------------------------
-import pandas as pd
+    # -----------------------------------------------------------------------------
+    # Data concatenation and cleanup for combined_subjects.parquet
+    # -----------------------------------------------------------------------------
+    import pandas as pd
 
-df = pd.concat(
-    [
-        pd.read_parquet(os.path.join("data", "processed_data", file))
-        for file in os.listdir(os.path.join("data", "processed_data"))
+    df = pd.concat(
+        [
+            pd.read_parquet(os.path.join("data", "processed_data", file))
+            for file in os.listdir(os.path.join("data", "processed_data"))
+        ]
+    )
+    # Drop unwanted column if exists
+    df.drop(columns=["PM25"], inplace=True, errors="ignore")
+    # Fill missing values for key features
+    fill_zero_cols = [
+        "average_nearby_num_lanes_50",
+        "average_nearby_maxspeed_50",
+        "average_nearby_streets_len_50",
+        "average_building_height_100",
+        "average_building_height_200",
     ]
-)
-# Drop unwanted column if exists
-df.drop(columns=["PM25"], inplace=True, errors="ignore")
-# Fill missing values for key features
-fill_zero_cols = [
-    "average_nearby_num_lanes_50",
-    "average_nearby_maxspeed_50",
-    "average_nearby_streets_len_50",
-    "average_building_height_100",
-    "average_building_height_200",
-]
-for col in fill_zero_cols:
-    df.loc[df[col].isna(), col] = 0
-# Drop any remaining missing rows
-df.dropna(inplace=True)
-# Write combined parquet
-output_path = os.path.join("data", "processed_data", "combined_subjects.parquet")
-df.to_parquet(output_path)
+    for col in fill_zero_cols:
+        df.loc[df[col].isna(), col] = 0
+    # Drop any remaining missing rows
+    df.dropna(inplace=True)
+    # Write combined parquet
+    output_path = os.path.join("data", "processed_data", "combined_subjects.parquet")
+    df.to_parquet(output_path)
