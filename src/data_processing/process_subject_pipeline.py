@@ -75,34 +75,11 @@ class ProcessSubjectPipeline:
         kml = self.extractor.loader.extract_kml(raw_dir / "route.kmz")
         segments = self.extractor.loader.build_segments(kml)
 
-        # Extract static points (fixed measurement locations)
-        static_df = self.extractor.extract_static(data, kml)
-
-        # Extract dynamic points with resampling using the updated method
-        dynamic_df = self.extractor.extract_dynamic(
-            data, segments, interpolation_meters=5
+        # Extract only dynamic points with resampling using the new method
+        # Skip static data processing for now
+        df = self.extractor.resample_dynamic(
+            data, segments, subject_id, interpolation_meters=5
         )
-
-        # Combine static + dynamic and sort by original index if available
-        if not static_df.empty and not dynamic_df.empty:
-            # For dynamic data, we need to create appropriate indices
-            # Use a simple incrementing index starting after static data
-            if hasattr(static_df, "index") and len(static_df.index) > 0:
-                max_static_idx = static_df.index.max()
-                dynamic_df.index = range(
-                    max_static_idx + 1, max_static_idx + 1 + len(dynamic_df)
-                )
-
-            df = pd.concat([static_df, dynamic_df]).sort_index()
-        elif not static_df.empty:
-            df = static_df
-        elif not dynamic_df.empty:
-            df = dynamic_df
-        else:
-            # If both are empty, create an empty DataFrame with required columns
-            df = pd.DataFrame(
-                columns=["x", "y", "CO2", "location", "regime", "subject_id"]
-            )
 
         # If DataFrame is empty, save empty result and return
         if df.empty:
@@ -110,9 +87,13 @@ class ProcessSubjectPipeline:
             df.to_parquet(out_dir / f"S{subject_id}-coords.parquet")
             return df
 
+        # Reset index for proper timestamp conversion
+        df = df.reset_index(drop=True)
+
         # Convert integer index to timestamps based on a base date + subject offset
         base = pd.Timestamp("2022-11-11") + pd.Timedelta(days=subject_id - 1)
-        df.index = base + pd.to_timedelta(df.index.astype(str))
+        # Create a proper timedelta from integer indices (assuming they represent seconds)
+        df.index = base + pd.to_timedelta(df.index, unit="s")
 
         # Load feature specifications from TOML file if it exists
         if self.specs_file.exists():
@@ -124,8 +105,9 @@ class ProcessSubjectPipeline:
                 desc=f"S{subject_id} features",
                 unit="feat",
                 dynamic_ncols=True,
-                position=1,
-                leave=False,
+                position=job_id + 1,
+                leave=True,
+                ncols=80,
             ) as feat_bar:
                 for feature in feat_bar:
                     prefix = feature["prefix"]
@@ -207,6 +189,8 @@ def cli_main():
         unit="subj",
         dynamic_ncols=True,
         position=0,
+        leave=True,
+        ncols=80,
     ) as subj_bar:
         for subject_id in subj_bar:
             subj_bar.set_postfix_str(f"S{subject_id}", refresh=False)
@@ -220,7 +204,6 @@ if __name__ == "__main__":
     else:
         cli_main()
 
-    # --- START: MODIFIED SECTION FOR WARNING SUPPRESSION ---
     import os
 
     # -----------------------------------------------------------------------------
@@ -232,6 +215,7 @@ if __name__ == "__main__":
         [
             pd.read_parquet(os.path.join("data", "processed_data", file))
             for file in os.listdir(os.path.join("data", "processed_data"))
+            if file != "combined_subjects.parquet" and file.endswith(".parquet")
         ]
     )
     # Drop unwanted column if exists
@@ -245,7 +229,9 @@ if __name__ == "__main__":
         "average_building_height_200",
     ]
     for col in fill_zero_cols:
-        df.loc[df[col].isna(), col] = 0
+        if col in df.columns:
+            # Fill NaN values with 0 for specified columns
+            df.loc[df[col].isna(), col] = 0
     # Drop any remaining missing rows
     df.dropna(inplace=True)
     # Write combined parquet
