@@ -211,7 +211,8 @@ class MapHandler:
 
         colors = ["#FF6B6B", "#4ECDC4"]
         labels = ["Point 1", "Point 2"]
-        marker_group = folium.FeatureGroup(name="Markers", show=True)
+        #marker_group = folium.FeatureGroup(name="Markers", show=True)
+        marker_group = folium.FeatureGroup(name="Markers", show=self.state.show_selected_points)
 
         for i, point in enumerate(points):
             icon_html = f"""

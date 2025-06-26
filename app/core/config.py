@@ -74,6 +74,7 @@ class AppConfig:
                     },
                     color="#1f77b4",
                 ),
+                "Industry": LayerConfig(tags={"landuse": True}, color="#9FE2BF"),
                 "Smoking Shop": LayerConfig(tags={"shop": True}, color="#ffdb0e"),
                 "Chimney": LayerConfig(tags={"man_made": True}, color="#9467bd"),
                 "Public Transport": LayerConfig(

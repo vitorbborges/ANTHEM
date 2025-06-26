@@ -7,6 +7,8 @@ import streamlit as st
 class AppState:
     """Manages application state using Streamlit session state."""
 
+
+
     def __init__(self):
         self._init_state()
 
@@ -18,6 +20,7 @@ class AppState:
             "click_update": False,
             "show_path": False,
             "show_route": True,
+            "show_kml_points": True,
             "enabled_layers": set(),
         }
 
@@ -41,6 +44,7 @@ class AppState:
     def show_path(self, value: bool):
         st.session_state.show_path = value
 
+
     @property
     def show_route(self) -> bool:
         return st.session_state.show_route
@@ -48,6 +52,14 @@ class AppState:
     @show_route.setter
     def show_route(self, value: bool):
         st.session_state.show_route = value
+
+    @property
+    def show_kml_points(self) -> bool:
+        return st.session_state.show_kml_points
+
+    @show_kml_points.setter
+    def show_kml_points(self, value: bool):
+        st.session_state.show_kml_points = value
 
     @property
     def enabled_layers(self) -> set:

@@ -135,6 +135,11 @@ class RouteMapApplication:
             "Show Route LineString", value=self.state.show_route
         )
 
+        # In _render_layer_controls()
+        self.state.show_kml_points = st.checkbox(
+            "Show Static Points", value=self.state.show_kml_points
+        )
+
         # OSM layer toggles
         st.markdown("**OSM Layers:**")
         enabled_layers = set()
@@ -165,6 +170,7 @@ class RouteMapApplication:
                 self.state.selected_points[0], self.state.selected_points[1]
             )
 
+
         # Get enabled layer data
         layer_data = {}
         for layer_name in self.state.enabled_layers:
@@ -178,7 +184,7 @@ class RouteMapApplication:
         # Create map
         m = self.map_service.create_complete_map(
             route_gdf=route_data["linestrings"] if self.state.show_route else None,
-            kml_points=route_data["points"],
+            kml_points=route_data["points"] if self.state.show_kml_points else None,
             selected_points=self.state.selected_points,
             shortest_path_coords=shortest_path_coords,
             layer_data=layer_data,
