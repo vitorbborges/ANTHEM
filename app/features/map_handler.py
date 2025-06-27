@@ -125,7 +125,7 @@ class MapHandler:
 
             folium.PolyLine(
                 locations=coords,
-                color="#F18F01",
+                color="#6ba2ae",
                 weight=4,
                 opacity=0.9,
                 interactive=False,
@@ -164,7 +164,7 @@ class MapHandler:
                     max_width=200,
                 ),
                 tooltip=point_name,
-                icon=folium.Icon(color="red", icon="info-sign", prefix="glyphicon"),
+                icon=folium.Icon(color="blue", icon="info-sign", prefix="glyphicon"),
             ).add_to(points_group)
 
         points_group.add_to(m)
@@ -187,7 +187,7 @@ class MapHandler:
 
         folium.PolyLine(
             locations=path_coords,
-            color="#00FF00",
+            color="#518dda",
             weight=6,
             opacity=0.8,
             popup="Shortest Path via Road Network",
@@ -212,7 +212,7 @@ class MapHandler:
         colors = ["#FF6B6B", "#4ECDC4"]
         labels = ["Point 1", "Point 2"]
         #marker_group = folium.FeatureGroup(name="Markers", show=True)
-        marker_group = folium.FeatureGroup(name="Markers", show=self.state.show_selected_points)
+        marker_group = folium.FeatureGroup(name="Markers", show=self.add_kml_points)
 
         for i, point in enumerate(points):
             icon_html = f"""

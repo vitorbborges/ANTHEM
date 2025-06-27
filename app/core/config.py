@@ -62,6 +62,7 @@ class AppConfig:
     map_config: MapConfig = field(default_factory=MapConfig)
     data_path: Path = field(default_factory=lambda: Path("data/raw_data"))
     osm_layers: Dict[str, LayerConfig] = field(default_factory=dict)
+    show_kml_points: bool = True
 
     def __post_init__(self):
         if not self.osm_layers:
@@ -75,7 +76,7 @@ class AppConfig:
                     color="#1f77b4",
                 ),
                 "Industry": LayerConfig(tags={"landuse": True}, color="#9FE2BF"),
-                "Smoking Shop": LayerConfig(tags={"shop": True}, color="#ffdb0e"),
+                "Smoking Shop": LayerConfig(tags={"shop": "tobacco"}, color="#adad85"),
                 "Chimney": LayerConfig(tags={"man_made": True}, color="#9467bd"),
                 "Public Transport": LayerConfig(
                     tags={"public_transport": True}, color="#d62728"

@@ -86,6 +86,9 @@ class RouteMapApplication:
         # Create layout
         left_col, center_col, right_col = self.layout_manager.create_layout()
 
+        image_url = "https://i.pinimg.com/736x/0f/c6/52/0fc6528ee6eedc52bc14a3750eadd500.jpg"
+        self.set_background(image_url)
+
         # Render left sidebar
         with left_col:
             self._render_left_sidebar()
@@ -227,3 +230,25 @@ class RouteMapApplication:
             self.state.selected_points,
             path_calculator if self.state.show_path else None,
         )
+    
+    def set_background(self, image_path: str):
+        """
+        Set background image for the entire Streamlit app using CSS.
+        image_path should be a relative path or a URL to the image.
+        """
+        # If you use a local image, you need to convert it to base64 or serve it publicly.
+        # For simplicity, let's assume image_path is a URL or base64 string.
+        st.markdown(
+            f"""
+            <style>
+            .stApp {{
+                background-image: url("{image_path}");
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+                background-attachment: fixed;
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True
+    )

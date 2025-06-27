@@ -36,7 +36,7 @@ class MapService:
             self.map_handler.add_kml_points(m, kml_points)
 
         # Add selected points
-        if selected_points and self.config.show_selected_points:
+        if selected_points and self.config.show_kml_points:
             self.map_handler.add_point_markers(m, selected_points) 
 
         # Add shortest path
