@@ -354,131 +354,7 @@ class ProperGridPrediction:
             print(f"Similarity weighting failed: {e}, falling back to simple average")
             return self._simple_average_ensemble(subject_predictions)
 
-    def save_grid_data(self, grid_df, predictions, n_rows, n_cols):
-        """Save grid data in multiple formats optimized for fast Streamlit loading."""
-
-        output_dir = PROJECT_ROOT / "output" / "grid_cache"
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        # Create output dataframe
-        output_df = grid_df.copy()
-        output_df["predicted_co2"] = predictions
-
-        # Add some useful computed columns for Streamlit
-        output_df["valid_prediction"] = ~np.isnan(predictions)
-
-        # Save in multiple formats for different use cases
-
-        # 1. Parquet - Fast loading, compressed, maintains dtypes
-        parquet_path = output_dir / f"grid_predictions_{self.grid_resolution}m.parquet"
-        output_df.to_parquet(parquet_path, index=False)
-        print(f"✅ Parquet saved: {parquet_path}")
-
-        # 2. CSV - Human readable, universal compatibility
-        csv_path = output_dir / f"grid_predictions_{self.grid_resolution}m.csv"
-        output_df.to_csv(csv_path, index=False)
-        print(f"✅ CSV saved: {csv_path}")
-
-        # 3. Numpy arrays - Ultra fast loading for just coordinates and predictions
-        coords_and_preds = {
-            "x": output_df["x"].values,
-            "y": output_df["y"].values,
-            "predicted_co2": predictions,
-            "grid_rows": n_rows,
-            "grid_cols": n_cols,
-            "resolution_meters": self.grid_resolution,
-            "bbox": self.bbox,
-            "valid_mask": ~np.isnan(predictions),
-        }
-
-        numpy_path = output_dir / f"grid_fast_{self.grid_resolution}m.npz"
-        np.savez_compressed(numpy_path, **coords_and_preds)
-        print(f"✅ Numpy cache saved: {numpy_path}")
-
-        # 4. Reshaped grid for direct plotting - fastest for heatmaps
-        pred_grid = predictions.reshape(n_rows, n_cols)
-
-        heatmap_data = {
-            "prediction_grid": pred_grid,
-            "extent": [
-                self.bbox[0],
-                self.bbox[2],
-                self.bbox[1],
-                self.bbox[3],
-            ],  # [west, east, south, north]
-            "resolution_meters": self.grid_resolution,
-            "n_rows": n_rows,
-            "n_cols": n_cols,
-            "stats": {
-                "min": float(np.nanmin(predictions)),
-                "max": float(np.nanmax(predictions)),
-                "mean": float(np.nanmean(predictions)),
-                "std": float(np.nanstd(predictions)),
-                "valid_count": int(np.sum(~np.isnan(predictions))),
-                "total_count": len(predictions),
-            },
-        }
-
-        heatmap_path = output_dir / f"heatmap_data_{self.grid_resolution}m.npz"
-        np.savez_compressed(heatmap_path, **heatmap_data)
-        print(f"✅ Heatmap cache saved: {heatmap_path}")
-
-        # 5. Metadata file for Streamlit app
-        import json
-        from datetime import datetime
-
-        metadata = {
-            "creation_time": datetime.now().isoformat(),
-            "resolution_meters": self.grid_resolution,
-            "grid_dimensions": {"rows": n_rows, "cols": n_cols},
-            "total_points": len(predictions),
-            "valid_predictions": int(np.sum(~np.isnan(predictions))),
-            "bbox": {
-                "west": self.bbox[0],
-                "south": self.bbox[1],
-                "east": self.bbox[2],
-                "north": self.bbox[3],
-            },
-            "prediction_stats": {
-                "min": float(np.nanmin(predictions)),
-                "max": float(np.nanmax(predictions)),
-                "mean": float(np.nanmean(predictions)),
-                "std": float(np.nanstd(predictions)),
-                "percentiles": {
-                    "25th": float(np.nanpercentile(predictions, 25)),
-                    "50th": float(np.nanpercentile(predictions, 50)),
-                    "75th": float(np.nanpercentile(predictions, 75)),
-                    "95th": float(np.nanpercentile(predictions, 95)),
-                },
-            },
-            "files": {
-                "parquet": f"grid_predictions_{self.grid_resolution}m.parquet",
-                "csv": f"grid_predictions_{self.grid_resolution}m.csv",
-                "numpy_cache": f"grid_fast_{self.grid_resolution}m.npz",
-                "heatmap_cache": f"heatmap_data_{self.grid_resolution}m.npz",
-            },
-            "features_included": list(grid_df.columns),
-        }
-
-        metadata_path = output_dir / f"metadata_{self.grid_resolution}m.json"
-        with open(metadata_path, "w") as f:
-            json.dump(metadata, f, indent=2)
-        print(f"✅ Metadata saved: {metadata_path}")
-
-        # Print file sizes for reference
-        print(f"\n📁 File sizes:")
-        for path in [parquet_path, csv_path, numpy_path, heatmap_path, metadata_path]:
-            if path.exists():
-                size_mb = path.stat().st_size / (1024 * 1024)
-                print(f"  {path.name}: {size_mb:.2f} MB")
-
-        print(f"\n📊 Cache Summary:")
-        print(f"  Directory: {output_dir}")
-        print(f"  Resolution: {self.grid_resolution}m")
-        print(f"  Grid size: {n_cols} × {n_rows} = {len(predictions):,} points")
-        print(f"  Valid predictions: {np.sum(~np.isnan(predictions)):,}")
-
-        return output_dir
+    def create_heatmap(self, grid_df, predictions, n_rows, n_cols, save_path=None):
         """Create heatmap visualization."""
 
         # Handle NaN predictions
@@ -575,13 +451,24 @@ Mean: {np.nanmean(predictions):.1f} ± {np.nanstd(predictions):.1f}"""
         # Step 5: Create visualization
         print("\n5️⃣ Creating visualization...")
         output_dir = PROJECT_ROOT / "output"
-        save_path = output_dir / f"proper_co2_heatmap_{self.grid_resolution}m.png"
+        save_path = (
+            output_dir / "plots" / f"proper_co2_heatmap_{self.grid_resolution}m.png"
+        )
 
         self.create_heatmap(grid_with_features, predictions, n_rows, n_cols, save_path)
 
-        # Step 6: Save data in multiple formats for fast Streamlit loading
+        # Step 6: Save data
         print("\n6️⃣ Saving results...")
-        self.save_grid_data(grid_with_features, predictions, n_rows, n_cols)
+        output_df = grid_with_features.copy()
+        output_df["predicted_co2"] = predictions
+
+        csv_path = (
+            output_dir
+            / "grid_cache"
+            / f"proper_grid_predictions_{self.grid_resolution}m.csv"
+        )
+        output_df.to_csv(csv_path, index=False)
+        print(f"Data saved to {csv_path}")
 
         print("\n🎉 Pipeline completed successfully!")
 
