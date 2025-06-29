@@ -6,3 +6,4 @@ fancyimpute
 scikit-learn
 matplotlib
 scipy
+tqdm
