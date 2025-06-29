@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional, Sequence, Union
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+from scipy.interpolate import interp1d
 from shapely.geometry import LineString, Point
 
 from src.data_processing.spatial_data_loader import SpatialDataLoader
@@ -63,8 +64,6 @@ class SpatialFeatureExtractor:
     def extract_dynamic(
         self, df: pd.DataFrame, segments: gpd.GeoDataFrame
     ) -> pd.DataFrame:
-        # TODO: remove the segments parameter as input (it wont be needed)
-        # TODO: change this method to use resampling instead of evengly spreading the data
         """
         Interpolate dynamic regime points evenly along provided line segments.
 
@@ -101,6 +100,105 @@ class SpatialFeatureExtractor:
             x=lambda d: d.sample_pt.map(lambda p: p.x),
             y=lambda d: d.sample_pt.map(lambda p: p.y),
         ).drop(columns=["sample_pt", "geometry"])
+
+    def resample_dynamic(
+        self,
+        df: pd.DataFrame,
+        segments: gpd.GeoDataFrame,
+        subject_id: int,
+        interpolation_meters: float = 5,
+    ) -> pd.DataFrame:
+        """
+        Resample dynamic regime points with interpolation along line segments.
+        This implements the colleague's resampling approach.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            DataFrame containing a 'regime' column with value 'dynamic'.
+        segments : gpd.GeoDataFrame
+            GeoDataFrame of LineString geometries labeled by 'location'.
+        subject_id : int
+            Subject identifier to add to the resampled data.
+        interpolation_meters : float, default=5
+            Distance in meters between interpolated points along segments.
+
+        Returns
+        -------
+        pd.DataFrame
+            Resampled DataFrame with interpolated CO2 values and coordinates.
+        """
+        # Select only dynamic regime rows
+        dynamic_df = df[df["regime"] == "dynamic"].copy()
+
+        if dynamic_df.empty:
+            return pd.DataFrame(columns=["x", "y", "CO2", "location", "regime", "sub"])
+
+        # Initialize result DataFrame
+        df_resampled_measure = pd.DataFrame(
+            columns=["x", "y", "CO2", "location", "regime", "sub"]
+        )
+
+        # Add length in the segments to know the ratio between true measurements and interpolated
+        gdf = gpd.GeoDataFrame(geometry=segments["geometry"].values)
+        gdf.set_crs(epsg=4326, inplace=True)  # WGS84 (lat/lon)
+        segments = segments.copy()
+        segments["length_m"] = gdf.to_crs(epsg=32632).geometry.length
+
+        # Merge dynamic data with segments
+        sd = dynamic_df.merge(
+            segments[["location", "geometry"]], on="location", how="left"
+        )
+        sd["sample_pt"] = None  # column for the interpolated signal
+
+        # Start interpolation
+        for loc, group in sd.groupby("location"):
+            values = group["CO2"].to_numpy()
+            n_measured_points = group.shape[0]
+            length_of_segment = int(
+                np.floor(segments[segments["location"] == loc]["length_m"].values[0])
+            )
+            n_interpolated_points = int(
+                np.floor(length_of_segment // interpolation_meters)
+            )
+
+            seg = group.geometry.iloc[0]  # the LineString for this location
+            L = seg.length  # its total length
+            dists = np.linspace(
+                0, L, n_interpolated_points
+            )  # linspace of equally distanced points
+
+            interpolated_pts = [seg.interpolate(d) for d in dists]
+            df_interpolated_coords = pd.DataFrame(
+                [(p.x, p.y) for p in interpolated_pts], columns=["x", "y"]
+            )
+
+            kind = "cubic" if n_measured_points >= 4 else "linear"
+
+            old_idx = np.linspace(0, n_measured_points - 1, num=n_measured_points)
+            new_idx = np.linspace(0, n_measured_points - 1, num=n_interpolated_points)
+
+            f_interp = interp1d(
+                old_idx, values, kind=kind, bounds_error=False, fill_value="extrapolate"
+            )
+            f_interp = f_interp(new_idx)
+
+            tmp = pd.DataFrame(
+                {
+                    "x": df_interpolated_coords["x"],
+                    "y": df_interpolated_coords["y"],
+                    "CO2": f_interp,
+                    "location": [loc] * len(f_interp),
+                    "regime": [group["regime"].iloc[0]] * len(f_interp),
+                    "sub": [subject_id] * len(f_interp),
+                }
+            )
+
+            df_resampled_measure = pd.concat(
+                [df_resampled_measure, tmp], ignore_index=True
+            )
+
+        return df_resampled_measure
 
     def is_close_to(
         self,
