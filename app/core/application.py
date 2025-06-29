@@ -1,4 +1,6 @@
 # app/core/application.py - Main application controller
+from pathlib import Path
+
 import streamlit as st
 from streamlit_folium import st_folium
 
@@ -6,6 +8,7 @@ from app.core.config import AppConfig
 from app.core.state import AppState
 from app.handlers.click_handler import ClickHandler
 from app.services.data_service import DataService
+from app.services.heatmap_service import CO2HeatmapService
 from app.services.map_service import MapService
 from app.ui.components import UIComponentFactory
 from app.ui.layout import LayoutManager
@@ -23,6 +26,10 @@ class RouteMapApplication:
         self.ui_factory = UIComponentFactory()
         self.click_handler = ClickHandler(config.bbox)
 
+        # Initialize CO2 heatmap service
+        project_root = Path(__file__).resolve().parents[2]  # Go up to project root
+        self.heatmap_service = CO2HeatmapService(project_root)
+
         self._configure_page()
 
     def _configure_page(self):
@@ -34,6 +41,54 @@ class RouteMapApplication:
         """Inject custom CSS for styling."""
         css = """
         <style>
+            /* Base text color to black for better readability */
+            .stApp, .stApp * {
+                color: black !important;
+            }
+
+            /* Specific overrides for Streamlit components */
+            .stMarkdown, .stMarkdown * {
+                color: black !important;
+            }
+
+            .stSelectbox label, .stSlider label, .stCheckbox label {
+                color: black !important;
+            }
+
+            /* Button styling - override black backgrounds */
+            .stButton > button {
+                color: white !important;
+                background-color: #518dda !important;
+                border: 1px solid #518dda !important;
+                border-radius: 6px !important;
+            }
+
+            .stButton > button:hover {
+                background-color: #4a7bc8 !important;
+                border-color: #4a7bc8 !important;
+            }
+
+            .stButton > button[kind="secondary"] {
+                background-color: #6c757d !important;
+                border-color: #6c757d !important;
+                color: white !important;
+            }
+
+            .stButton > button[kind="secondary"]:hover {
+                background-color: #5a6268 !important;
+                border-color: #545b62 !important;
+            }
+
+            /* Override code/monospace styling */
+            code {
+                background-color: rgba(135, 206, 250, 0.9) !important;
+                color: black !important;
+                padding: 2px 6px !important;
+                border-radius: 3px !important;
+                border: none !important;
+            }
+
+            /* Map styling */
             iframe { border: none !important; outline: none !important; box-shadow: none !important; }
             .stApp > div > div > div > div > div > section > div > div > div > div > div {
                 border: none !important; outline: none !important;
@@ -86,7 +141,9 @@ class RouteMapApplication:
         # Create layout
         left_col, center_col, right_col = self.layout_manager.create_layout()
 
-        image_url = "https://i.pinimg.com/736x/0f/c6/52/0fc6528ee6eedc52bc14a3750eadd500.jpg"
+        image_url = (
+            "https://i.pinimg.com/736x/0f/c6/52/0fc6528ee6eedc52bc14a3750eadd500.jpg"
+        )
         self.set_background(image_url)
 
         # Render left sidebar
@@ -104,47 +161,68 @@ class RouteMapApplication:
 
     def _render_left_sidebar(self):
         """Render the left sidebar with controls."""
-        # Selected points section
-        self.ui_factory.create_points_panel(self.state.selected_points)
-
-        # Control buttons
-        col1, col2 = st.columns(2)
-        with col1:
-            if self.ui_factory.create_clear_button():
-                self.state.clear_points()
-                st.rerun()
-
-        with col2:
-            if self.ui_factory.create_path_button(self.state.can_show_path()):
-                if self.state.can_show_path():
-                    self.state.show_path = True
-                    st.rerun()
-
-        # Show path status
-        if self.state.show_path and self.state.can_show_path():
-            st.success("🛣️ Shortest path is displayed")
-        elif self.state.show_path:
-            self.state.show_path = False  # Reset if points were cleared elsewhere
-
-        # Layer controls
+        # Layer controls only (buttons moved to right sidebar)
         self._render_layer_controls()
 
     def _render_layer_controls(self):
         """Render layer control checkboxes."""
-        st.markdown("### 🗂️ Show Layers")
+        st.markdown(
+            """
+            <div style="color: black;">
+                <h3>🗂️ Show Layers</h3>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
         # Route toggle
         self.state.show_route = st.checkbox(
             "Show Route LineString", value=self.state.show_route
         )
 
-        # In _render_layer_controls()
+        # KML points toggle
         self.state.show_kml_points = st.checkbox(
             "Show Static Points", value=self.state.show_kml_points
         )
 
+        # CO2 Heatmap section
+        st.markdown(
+            """
+            <div style="color: black;">
+                <h4>🔥 CO₂ Concentration Heatmap</h4>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        # CO2 heatmap toggle
+        self.state.show_co2_heatmap = st.checkbox(
+            "Show CO₂ Heatmap",
+            value=getattr(self.state, "show_co2_heatmap", True),  # Default to True
+        )
+
+        # Show CO2 data summary if heatmap is enabled
+        if self.state.show_co2_heatmap:
+            self.heatmap_service.render_data_summary()
+
+            # Fixed heatmap settings (no user controls)
+            self.state.heatmap_settings = {
+                "resolution": 150,
+                "colormap": "RdYlBu_r",
+                "alpha": 0.7,
+                "interpolation_method": "linear",
+                "show_legend": True,
+            }
+
         # OSM layer toggles
-        st.markdown("**OSM Layers:**")
+        st.markdown(
+            """
+            <div style="color: black;">
+                <strong>OSM Layers:</strong>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         enabled_layers = set()
 
         for label, layer_config in self.config.osm_layers.items():
@@ -173,7 +251,6 @@ class RouteMapApplication:
                 self.state.selected_points[0], self.state.selected_points[1]
             )
 
-
         # Get enabled layer data
         layer_data = {}
         for layer_name in self.state.enabled_layers:
@@ -192,6 +269,25 @@ class RouteMapApplication:
             shortest_path_coords=shortest_path_coords,
             layer_data=layer_data,
         )
+
+        # Add CO2 heatmap if enabled
+        if self.state.show_co2_heatmap:
+            heatmap_settings = getattr(self.state, "heatmap_settings", {})
+            # Pass the bounding box to the heatmap service
+            success = self.heatmap_service.add_heatmap_with_legend(
+                m, self.config.bbox.bbox_tuple, **heatmap_settings
+            )
+
+            if not success:
+                st.markdown(
+                    """
+                    <div style="color: #ff6b6b; background-color: rgba(255,255,255,0.8); padding: 10px; border-radius: 5px; margin: 10px 0;">
+                        <strong>⚠️ Could not load CO₂ heatmap</strong><br>
+                        Check if the data file exists: output/grid_cache/proper_grid_predictions_100m.csv
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
         # Display map
         map_width = self.config.map_config.width
@@ -225,12 +321,45 @@ class RouteMapApplication:
                 st.rerun()
 
     def _render_right_sidebar(self, path_calculator):
-        """Render the right sidebar with calculations."""
+        """Render the right sidebar with selected points and calculations."""
+        # Selected points section (moved from left sidebar)
+        self.ui_factory.create_points_panel(self.state.selected_points)
+
+        # Control buttons (moved from left sidebar)
+        col1, col2 = st.columns(2)
+        with col1:
+            if self.ui_factory.create_clear_button("right"):
+                self.state.clear_points()
+                st.rerun()
+
+        with col2:
+            if self.ui_factory.create_path_button(self.state.can_show_path(), "right"):
+                if self.state.can_show_path():
+                    self.state.show_path = True
+                    st.rerun()
+
+        # Show path status
+        if self.state.show_path and self.state.can_show_path():
+            st.markdown(
+                """
+                <div style="color: #28a745; background-color: rgba(173, 216, 230, 0.8); padding: 10px; border-radius: 5px; margin: 5px 0;">
+                    <strong>🛣️ Shortest path is displayed</strong>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        elif self.state.show_path:
+            self.state.show_path = False  # Reset if points were cleared elsewhere
+
+        # Add some spacing
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # Calculations panel
         self.ui_factory.create_calculations_panel(
             self.state.selected_points,
             path_calculator if self.state.show_path else None,
         )
-    
+
     def set_background(self, image_path: str):
         """
         Set background image for the entire Streamlit app using CSS.
@@ -250,5 +379,5 @@ class RouteMapApplication:
             }}
             </style>
             """,
-            unsafe_allow_html=True
-    )
+            unsafe_allow_html=True,
+        )

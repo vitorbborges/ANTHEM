@@ -24,7 +24,6 @@ class MapService:
         layer_data: Optional[Dict[str, Dict[str, Any]]] = None,
     ) -> folium.Map:
         """Create a complete map with all requested layers."""
-
         m = self.map_handler.create_base_map()
 
         # Add route data
@@ -36,8 +35,8 @@ class MapService:
             self.map_handler.add_kml_points(m, kml_points)
 
         # Add selected points
-        if selected_points and self.config.show_kml_points:
-            self.map_handler.add_point_markers(m, selected_points) 
+        if selected_points:
+            self.map_handler.add_point_markers(m, selected_points)
 
         # Add shortest path
         if shortest_path_coords:
@@ -57,7 +56,6 @@ class MapService:
         for layer_name, data in layer_data.items():
             gdf = data["gdf"]
             color = data["color"]
-
             for _, row in gdf.iterrows():
                 geom = row.geometry
                 if geom.geom_type == "Point":
