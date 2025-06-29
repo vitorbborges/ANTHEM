@@ -4,3 +4,5 @@ geopandas
 osmnx
 fancyimpute
 scikit-learn
+matplotlib
+scipy

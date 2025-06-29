@@ -1,243 +1,355 @@
-# src/modeling/cv_handler.py
-import time
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Union
 
 import numpy as np
-import optuna
 import pandas as pd
+from sklearn.cluster import KMeans
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.model_selection import StratifiedKFold, train_test_split
-from sklearn.pipeline import Pipeline
+from sklearn.model_selection import GroupKFold, train_test_split
 
-from .utils import adjusted_r2_score, log_message, stratify_continuous
+from .env_similarity import UnifiedEnvironmentalSimilarity
 
 
-class CrossValidationHandler:
-    """Handles nested cross-validation for hyperparameter optimization."""
+def adjusted_r2_score(y_true, y_pred, n_features):
+    r2 = r2_score(y_true, y_pred)
+    n = len(y_true)
+    if n <= n_features + 1:
+        return float("-inf")
+    adj_r2 = 1 - (1 - r2) * (n - 1) / (n - n_features - 1)
+    return adj_r2
 
-    def __init__(
-        self, outer_folds: int = 5, inner_folds: int = 3, test_size: float = 0.2
-    ):
-        self.outer_folds = outer_folds
-        self.inner_folds = inner_folds
-        self.test_size = test_size
 
-    def nested_cv_evaluate(
-        self, X: pd.DataFrame, y: pd.Series, pipeline_factory, trial, trial_number: int
-    ) -> Dict:
-        """
-        Performs nested cross-validation with a final holdout evaluation.
+class SpatioTemporalCV:
+    def __init__(self, temporal_folds=4, spatial_folds=3, holdout_size=0.2):
+        self.temporal_folds = temporal_folds
+        self.spatial_folds = spatial_folds
+        self.holdout_size = holdout_size
 
-        Returns:
-            Dict containing all evaluation metrics and scores
-        """
-        start_time = time.time()
-        n_features = X.shape[1]
+        # Initialize unified similarity calculator
+        self.similarity_calc = UnifiedEnvironmentalSimilarity(method="combined")
 
-        # TODO: Add temporal ordering for Kalman Filter
-        # For Kalman filtering, data should be sorted by timestamp
-        # if 'timestamp' in X.columns:
-        #     sort_idx = X['timestamp'].argsort()
-        #     X = X.iloc[sort_idx]
-        #     y = y.iloc[sort_idx]
-
-        # Create stratification bins for continuous target
-        log_message(f"Trial {trial_number}: Creating stratification bins...")
-        strata = stratify_continuous(y)
-
-        # Create holdout set (never touched during training/CV)
-        # TODO: For Kalman Filter, use temporal split instead of random split
-        # Use last 20% of data as holdout for time series validation
-        # holdout_split_idx = int(len(X) * 0.8)
-        # X_dev, X_holdout = X.iloc[:holdout_split_idx], X.iloc[holdout_split_idx:]
-        # y_dev, y_holdout = y.iloc[:holdout_split_idx], y.iloc[holdout_split_idx:]
-        # strata_dev = strata[:holdout_split_idx]
-
-        X_dev, X_holdout, y_dev, y_holdout, strata_dev, _ = train_test_split(
-            X, y, strata, test_size=self.test_size, random_state=42, stratify=strata
-        )
-
-        log_message(
-            f"Trial {trial_number}: Created holdout set with {len(X_holdout)} samples"
-        )
-
-        # Outer CV for performance estimation
-        # TODO: For Kalman Filter, use TimeSeriesSplit instead of StratifiedKFold
-        # from sklearn.model_selection import TimeSeriesSplit
-        # outer_cv = TimeSeriesSplit(n_splits=self.outer_folds, test_size=None)
-        outer_cv = StratifiedKFold(
-            n_splits=self.outer_folds, shuffle=True, random_state=42
-        )
-        outer_scores = {"mse": [], "r2": [], "adj_r2": [], "mae": []}
-
-        # Outer CV loop
-        for outer_fold, (train_idx, test_idx) in enumerate(
-            outer_cv.split(X_dev, strata_dev)
-        ):
-            log_message(
-                f"Trial {trial_number}: Outer fold {outer_fold+1}/{self.outer_folds}"
+    def _create_subject_groups(self, X):
+        """Extract subject groups from the 'sub' column"""
+        if "sub" not in X.columns:
+            raise ValueError(
+                "Column 'sub' not found in data. This column should contain subject IDs (1-20)."
             )
 
+        subject_groups = X["sub"].values
+        unique_subjects = np.unique(subject_groups)
+
+        print(
+            f"Found {len(unique_subjects)} unique subjects: {sorted(unique_subjects)}"
+        )
+
+        return subject_groups
+
+    def _create_spatial_blocks(self, X_subject):
+        if "x" not in X_subject.columns or "y" not in X_subject.columns:
+            # Fallback to sequential blocks
+            n_samples = len(X_subject)
+            return np.arange(n_samples) % self.spatial_folds
+
+        coords = X_subject[["x", "y"]].values
+        if len(coords) < self.spatial_folds:
+            return np.arange(len(coords)) % len(coords)
+
+        kmeans = KMeans(n_clusters=self.spatial_folds, random_state=42, n_init=10)
+        return kmeans.fit_predict(coords)
+
+    def _calculate_env_similarity(self, test_features, train_features_dict):
+        """
+        Calculate environmental similarity using unified method for consistency.
+        This replaces the old simple euclidean method.
+        """
+        return self.similarity_calc.calculate_similarity(
+            test_features, train_features_dict
+        )
+
+    def _create_holdout_split(self, X, y):
+        """Create holdout set by subjects to avoid data leakage"""
+        subject_groups = self._create_subject_groups(X)
+        unique_subjects = np.unique(subject_groups)
+        n_holdout_subjects = max(1, int(len(unique_subjects) * self.holdout_size))
+
+        # Randomly select subjects for holdout
+        np.random.seed(42)
+        holdout_subjects = np.random.choice(
+            unique_subjects, n_holdout_subjects, replace=False
+        )
+
+        # Create masks
+        holdout_mask = np.isin(subject_groups, holdout_subjects)
+        dev_mask = ~holdout_mask
+
+        X_dev = X[dev_mask].reset_index(drop=True)
+        y_dev = y[dev_mask].reset_index(drop=True)
+        X_holdout = X[holdout_mask].reset_index(drop=True)
+        y_holdout = y[holdout_mask].reset_index(drop=True)
+
+        print(
+            f"Holdout split: {len(X_dev)} dev samples, {len(X_holdout)} holdout samples"
+        )
+        print(f"Holdout subjects: {sorted(holdout_subjects)}")
+
+        return X_dev, y_dev, X_holdout, y_holdout
+
+    def evaluate(self, X, y, pipeline_factory, trial):
+        # Create holdout set first
+        X_dev, y_dev, X_holdout, y_holdout = self._create_holdout_split(X, y)
+
+        # Perform cross-validation on development set
+        subject_groups = self._create_subject_groups(X_dev)
+        temporal_cv = GroupKFold(n_splits=self.temporal_folds)
+
+        temporal_scores = []
+        all_subject_models = []
+
+        for fold_idx, (train_idx, test_idx) in enumerate(
+            temporal_cv.split(X_dev, y_dev, groups=subject_groups)
+        ):
+            print(f"  Temporal fold {fold_idx + 1}/{self.temporal_folds}")
+
+            # Split by subjects
             X_train, X_test = X_dev.iloc[train_idx], X_dev.iloc[test_idx]
             y_train, y_test = y_dev.iloc[train_idx], y_dev.iloc[test_idx]
 
-            # Inner CV for hyperparameter tuning
-            inner_strata = stratify_continuous(y_train)
-            # TODO: For Kalman Filter, use TimeSeriesSplit for inner CV as well
-            # inner_cv = TimeSeriesSplit(n_splits=self.inner_folds, test_size=None)
-            inner_cv = StratifiedKFold(
-                n_splits=self.inner_folds, shuffle=True, random_state=0
-            )
+            train_subjects = subject_groups[train_idx]
+            unique_train_subjects = np.unique(train_subjects)
 
-            try:
-                pipeline = pipeline_factory(trial, X_train)
-                inner_cv_scores = []
+            # Train model for each subject using spatial CV
+            subject_models = []
+            train_env_features = {}
 
-                # Inner CV loop
-                for inner_fold, (inner_train_idx, inner_val_idx) in enumerate(
-                    inner_cv.split(X_train, inner_strata)
-                ):
-                    X_inner_train = X_train.iloc[inner_train_idx]
-                    X_inner_val = X_train.iloc[inner_val_idx]
-                    y_inner_train = y_train.iloc[inner_train_idx]
-                    y_inner_val = y_train.iloc[inner_val_idx]
+            for subject_id in unique_train_subjects:
+                subject_mask = train_subjects == subject_id
+                X_subject = X_train[subject_mask]
+                y_subject = y_train[subject_mask]
 
-                    # Fit and evaluate on inner fold
-                    pipeline.fit(X_inner_train, y_inner_train)
-                    y_inner_pred = pipeline.predict(X_inner_val)
+                if len(X_subject) < 10:
+                    continue
 
-                    # TODO: For Kalman Filter, add sequential prediction with state updates
-                    # if hasattr(pipeline.named_steps.get('kalman_filter'), 'predict_sequential'):
-                    #     y_inner_pred = pipeline.named_steps['kalman_filter'].predict_sequential(
-                    #         X_inner_val, y_inner_train[-1]  # Use last training value as initial state
-                    #     )
+                # Spatial CV within subject for hyperparameter validation
+                spatial_blocks = self._create_spatial_blocks(X_subject)
+                spatial_scores = []
 
-                    inner_fold_mse = mean_squared_error(y_inner_val, y_inner_pred)
-                    inner_cv_scores.append(inner_fold_mse)
+                pipeline = pipeline_factory(trial, X_subject)
 
-                    # Report for pruning
-                    step = outer_fold * self.inner_folds + inner_fold
-                    trial.report(inner_fold_mse, step=step)
-                    if trial.should_prune():
-                        log_message(
-                            f"Trial {trial_number}: Pruned at outer fold {outer_fold+1}, inner fold {inner_fold+1}"
+                # Spatial cross-validation within this subject
+                unique_blocks = np.unique(spatial_blocks)
+                for fold in range(min(self.spatial_folds, len(unique_blocks))):
+                    if fold >= len(unique_blocks):
+                        break
+
+                    spatial_train_mask = spatial_blocks != fold
+                    spatial_test_mask = spatial_blocks == fold
+
+                    if not spatial_test_mask.any() or not spatial_train_mask.any():
+                        continue
+
+                    X_sp_train = X_subject[spatial_train_mask]
+                    y_sp_train = y_subject[spatial_train_mask]
+                    X_sp_test = X_subject[spatial_test_mask]
+                    y_sp_test = y_subject[spatial_test_mask]
+
+                    try:
+                        pipeline.fit(X_sp_train, y_sp_train)
+                        y_pred = pipeline.predict(X_sp_test)
+                        spatial_scores.append(mean_squared_error(y_sp_test, y_pred))
+                    except Exception as e:
+                        print(
+                            f"    Subject {subject_id}, spatial fold {fold} failed: {e}"
                         )
-                        raise optuna.exceptions.TrialPruned()
+                        continue
 
-                # Refit on entire outer training fold
-                pipeline.fit(X_train, y_train)
-                y_outer_pred = pipeline.predict(X_test)
+                if spatial_scores:
+                    # Train final model on all subject data
+                    try:
+                        pipeline.fit(X_subject, y_subject)
+                        subject_models.append(
+                            {
+                                "subject_id": subject_id,
+                                "pipeline": pipeline,
+                                "spatial_score": np.mean(spatial_scores),
+                                "n_samples": len(X_subject),
+                            }
+                        )
+                        train_env_features[subject_id] = X_subject
+                    except Exception as e:
+                        print(f"    Subject {subject_id} final training failed: {e}")
+                        continue
 
-                # TODO: For Kalman Filter, use sequential prediction for outer fold evaluation
-                # if hasattr(pipeline.named_steps.get('kalman_filter'), 'predict_sequential'):
-                #     y_outer_pred = pipeline.named_steps['kalman_filter'].predict_sequential(
-                #         X_test, y_train.iloc[-1]  # Use last training value as initial state
-                #     )
-
-                # Calculate outer fold metrics
-                outer_fold_mse = mean_squared_error(y_test, y_outer_pred)
-                outer_fold_mae = mean_absolute_error(y_test, y_outer_pred)
-                outer_fold_r2 = r2_score(y_test, y_outer_pred)
-                outer_fold_adj_r2 = adjusted_r2_score(y_test, y_outer_pred, n_features)
-
-                outer_scores["mse"].append(outer_fold_mse)
-                outer_scores["mae"].append(outer_fold_mae)
-                outer_scores["r2"].append(outer_fold_r2)
-                outer_scores["adj_r2"].append(outer_fold_adj_r2)
-
-                log_message(
-                    f"Trial {trial_number}, Outer fold {outer_fold+1}: "
-                    f"MSE={outer_fold_mse:.6f}, R²={outer_fold_r2:.6f}"
-                )
-
-            except Exception as e:
-                log_message(
-                    f"Trial {trial_number}, Outer fold {outer_fold+1} failed: {str(e)}"
-                )
+            if not subject_models:
+                print(f"    No successful subject models in fold {fold_idx + 1}")
                 continue
 
-        # Check if we have any successful folds
-        if len(outer_scores["mse"]) == 0:
-            log_message(f"Trial {trial_number}: No successful outer folds")
-            raise Exception("No successful outer folds")
+            # Store models for final ensemble
+            all_subject_models.extend(subject_models)
 
-        # Calculate mean outer CV scores
-        mean_outer_mse = np.mean(outer_scores["mse"])
-        mean_outer_mae = np.mean(outer_scores["mae"])
-        mean_outer_r2 = np.mean(outer_scores["r2"])
-        mean_outer_adj_r2 = np.mean(outer_scores["adj_r2"])
+            # Ensemble prediction with environmental similarity
+            test_similarities = self._calculate_env_similarity(
+                X_test, train_env_features
+            )
+
+            predictions = []
+            for _, sample in X_test.iterrows():
+                sample_preds = []
+                weights = []
+
+                for model_info in subject_models:
+                    subject_id = model_info["subject_id"]
+                    try:
+                        pred = model_info["pipeline"].predict(
+                            sample.values.reshape(1, -1)
+                        )[0]
+                        weight = test_similarities.get(subject_id, 0.1)
+                        sample_preds.append(pred)
+                        weights.append(weight)
+                    except:
+                        continue
+
+                if sample_preds:
+                    weights = np.array(weights)
+                    weights = weights / weights.sum()
+                    pred = np.average(sample_preds, weights=weights)
+                    predictions.append(pred)
+                else:
+                    predictions.append(y_test.mean())
+
+            if predictions:
+                temporal_score = mean_squared_error(y_test, predictions)
+                temporal_scores.append(temporal_score)
+                print(f"    Fold {fold_idx + 1} MSE: {temporal_score:.6f}")
+
+        if not temporal_scores:
+            print("  No successful temporal folds")
+            return float("inf")
+
+        cv_score = np.mean(temporal_scores)
+        print(f"  CV MSE: {cv_score:.6f}")
 
         # Final evaluation on holdout set
-        try:
-            log_message(f"Trial {trial_number}: Final evaluation on holdout set...")
-            final_pipeline = pipeline_factory(trial, X_dev)
-            final_pipeline.fit(X_dev, y_dev)
+        print("  Evaluating on holdout set...")
 
-            # Holdout test metrics
-            y_holdout_pred = final_pipeline.predict(X_holdout)
+        # Train final ensemble on all development data
+        final_subject_models = {}
+        dev_subject_groups = self._create_subject_groups(X_dev)
+        unique_dev_subjects = np.unique(dev_subject_groups)
 
-            # TODO: For Kalman Filter, use sequential prediction on holdout set
-            # if hasattr(final_pipeline.named_steps.get('kalman_filter'), 'predict_sequential'):
-            #     y_holdout_pred = final_pipeline.named_steps['kalman_filter'].predict_sequential(
-            #         X_holdout, y_dev.iloc[-1]  # Use last development value as initial state
-            #     )
+        for subject_id in unique_dev_subjects:
+            subject_mask = dev_subject_groups == subject_id
+            X_subject = X_dev[subject_mask]
+            y_subject = y_dev[subject_mask]
 
-            holdout_test_mse = mean_squared_error(y_holdout, y_holdout_pred)
-            holdout_test_mae = mean_absolute_error(y_holdout, y_holdout_pred)
-            holdout_test_r2 = r2_score(y_holdout, y_holdout_pred)
-            holdout_test_adj_r2 = adjusted_r2_score(
-                y_holdout, y_holdout_pred, n_features
-            )
+            if len(X_subject) < 10:
+                continue
 
-            # Training set metrics
-            y_dev_pred = final_pipeline.predict(X_dev)
-            holdout_train_mse = mean_squared_error(y_dev, y_dev_pred)
-            holdout_train_mae = mean_absolute_error(y_dev, y_dev_pred)
-            holdout_train_r2 = r2_score(y_dev, y_dev_pred)
-            holdout_train_adj_r2 = adjusted_r2_score(y_dev, y_dev_pred, n_features)
-
-            # Store results for later analysis
-            holdout_results = pd.DataFrame(
-                {
-                    "actual_test": y_holdout.values,
-                    "predicted_test": y_holdout_pred,
+            try:
+                # Use the same hyperparameters from the trial
+                pipeline = pipeline_factory(trial, X_subject)
+                pipeline.fit(X_subject, y_subject)
+                final_subject_models[subject_id] = {
+                    "pipeline": pipeline,
+                    "env_features": X_subject,
                 }
+            except Exception as e:
+                print(f"    Final subject {subject_id} training failed: {e}")
+                continue
+
+        if not final_subject_models:
+            print("  No final subject models trained")
+            return float("inf")
+
+        # Predict on holdout set
+        holdout_similarities = self._calculate_env_similarity(
+            X_holdout,
+            {sid: info["env_features"] for sid, info in final_subject_models.items()},
+        )
+
+        holdout_predictions = []
+        for _, sample in X_holdout.iterrows():
+            sample_preds = []
+            weights = []
+
+            for subject_id, model_info in final_subject_models.items():
+                try:
+                    pred = model_info["pipeline"].predict(sample.values.reshape(1, -1))[
+                        0
+                    ]
+                    weight = holdout_similarities.get(subject_id, 0.1)
+                    sample_preds.append(pred)
+                    weights.append(weight)
+                except:
+                    continue
+
+            if sample_preds:
+                weights = np.array(weights)
+                weights = weights / weights.sum()
+                pred = np.average(sample_preds, weights=weights)
+                holdout_predictions.append(pred)
+            else:
+                holdout_predictions.append(y_holdout.mean())
+
+        # Calculate holdout metrics
+        holdout_mse = mean_squared_error(y_holdout, holdout_predictions)
+        holdout_mae = mean_absolute_error(y_holdout, holdout_predictions)
+        holdout_r2 = r2_score(y_holdout, holdout_predictions)
+        holdout_adj_r2 = adjusted_r2_score(
+            y_holdout, holdout_predictions, X_holdout.shape[1]
+        )
+
+        # Calculate development set metrics for comparison
+        dev_predictions = []
+        dev_similarities = self._calculate_env_similarity(
+            X_dev,
+            {sid: info["env_features"] for sid, info in final_subject_models.items()},
+        )
+
+        for _, sample in X_dev.iterrows():
+            sample_preds = []
+            weights = []
+
+            for subject_id, model_info in final_subject_models.items():
+                try:
+                    pred = model_info["pipeline"].predict(sample.values.reshape(1, -1))[
+                        0
+                    ]
+                    weight = dev_similarities.get(subject_id, 0.1)
+                    sample_preds.append(pred)
+                    weights.append(weight)
+                except:
+                    continue
+
+            if sample_preds:
+                weights = np.array(weights)
+                weights = weights / weights.sum()
+                pred = np.average(sample_preds, weights=weights)
+                dev_predictions.append(pred)
+            else:
+                dev_predictions.append(y_dev.mean())
+
+        dev_mse = mean_squared_error(y_dev, dev_predictions)
+        dev_r2 = r2_score(y_dev, dev_predictions)
+
+        print(f"  Development MSE: {dev_mse:.6f}, R²: {dev_r2:.6f}")
+        print(f"  Holdout MSE: {holdout_mse:.6f}, R²: {holdout_r2:.6f}")
+        print(
+            f"  Overfitting check: {(holdout_mse - dev_mse) / dev_mse * 100:.1f}% increase in MSE"
+        )
+
+        # Store additional metrics in trial for analysis
+        if hasattr(trial, "set_user_attr"):
+            trial.set_user_attr("cv_mse", cv_score)
+            trial.set_user_attr("dev_mse", dev_mse)
+            trial.set_user_attr("dev_r2", dev_r2)
+            trial.set_user_attr("holdout_mse", holdout_mse)
+            trial.set_user_attr("holdout_mae", holdout_mae)
+            trial.set_user_attr("holdout_r2", holdout_r2)
+            trial.set_user_attr("holdout_adj_r2", holdout_adj_r2)
+            trial.set_user_attr(
+                "overfitting_ratio",
+                holdout_mse / dev_mse if dev_mse > 0 else float("inf"),
             )
+            trial.set_user_attr("n_final_models", len(final_subject_models))
 
-            # Create separate DataFrame for training results
-            train_results = pd.DataFrame(
-                {
-                    "actual_train": y_dev.values,
-                    "predicted_train": y_dev_pred,
-                }
-            )
-
-            results = {
-                "pipeline": final_pipeline,
-                "holdout_results": holdout_results,
-                "train_results": train_results,
-                "cv_mse": mean_outer_mse,
-                "cv_mae": mean_outer_mae,
-                "cv_r2": mean_outer_r2,
-                "cv_adj_r2": mean_outer_adj_r2,
-                "holdout_test_mse": holdout_test_mse,
-                "holdout_test_mae": holdout_test_mae,
-                "holdout_test_r2": holdout_test_r2,
-                "holdout_test_adj_r2": holdout_test_adj_r2,
-                "holdout_train_mse": holdout_train_mse,
-                "holdout_train_mae": holdout_train_mae,
-                "holdout_train_r2": holdout_train_r2,
-                "holdout_train_adj_r2": holdout_train_adj_r2,
-                "time_taken": time.time() - start_time,
-                "n_features": n_features,
-                "outer_cv_scores": outer_scores,
-            }
-
-            log_message(
-                f"Trial {trial_number}: Completed in {results['time_taken']:.2f}s"
-            )
-            return results
-
-        except Exception as e:
-            log_message(f"Trial {trial_number}: Final evaluation failed: {str(e)}")
-            raise
+        # Return CV score for optimization (this is what Optuna minimizes)
+        return cv_score

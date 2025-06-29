@@ -1,4 +1,4 @@
-# app/features/map_handler.py - Keep your existing map handler (updated imports)
+# app/features/map_handler.py - Keep your existing map handler (updated with OpenStreetMap)
 from typing import Any, Dict, List, Tuple
 
 import folium
@@ -23,7 +23,7 @@ class MapHandler:
 
     def create_base_map(self) -> folium.Map:
         """
-        Create the base map with dark theme and controlled interactions.
+        Create the base map with OpenStreetMap tiles and controlled interactions.
 
         Returns
         -------
@@ -58,10 +58,11 @@ class MapHandler:
             crs="EPSG3857",
         )
 
+        # Use OpenStreetMap instead of CartoDB Dark
         folium.TileLayer(
-            tiles="https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png",
-            attr=" ",
-            name="CartoDB Dark",
+            tiles="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            attr="© OpenStreetMap contributors",
+            name="OpenStreetMap",
             overlay=False,
             control=False,
             max_zoom=20,
@@ -211,8 +212,7 @@ class MapHandler:
 
         colors = ["#FF6B6B", "#4ECDC4"]
         labels = ["Point 1", "Point 2"]
-        #marker_group = folium.FeatureGroup(name="Markers", show=True)
-        marker_group = folium.FeatureGroup(name="Markers", show=self.add_kml_points)
+        marker_group = folium.FeatureGroup(name="Markers", show=True)
 
         for i, point in enumerate(points):
             icon_html = f"""
@@ -240,8 +240,8 @@ class MapHandler:
                     <div style='
                         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
                         font-size: 12px;
-                        background: #2F2F2F;
-                        color: white;
+                        background: #FFFFFF;
+                        color: black;
                         padding: 12px;
                         border-radius: 8px;
                         min-width: 150px;
@@ -254,11 +254,11 @@ class MapHandler:
                             font-size: 14px;
                         '>{labels[i]}</div>
                         <div style='margin-bottom: 4px;'>
-                            <span style='color: #999;'>Lat:</span>
+                            <span style='color: #666;'>Lat:</span>
                             <span style='font-family: monospace;'>{point['lat']:.6f}</span>
                         </div>
                         <div>
-                            <span style='color: #999;'>Lng:</span>
+                            <span style='color: #666;'>Lng:</span>
                             <span style='font-family: monospace;'>{point['lng']:.6f}</span>
                         </div>
                     </div>

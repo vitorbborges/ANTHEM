@@ -7,8 +7,6 @@ import streamlit as st
 class AppState:
     """Manages application state using Streamlit session state."""
 
-
-
     def __init__(self):
         self._init_state()
 
@@ -21,6 +19,14 @@ class AppState:
             "show_path": False,
             "show_route": True,
             "show_kml_points": True,
+            "show_co2_heatmap": True,  # Start with heatmap enabled
+            "heatmap_settings": {
+                "resolution": 150,
+                "colormap": "RdYlBu_r",  # Fixed red-yellow-blue color scheme
+                "alpha": 0.7,  # Fixed transparency
+                "interpolation_method": "linear",
+                "show_legend": True,
+            },
             "enabled_layers": set(),
         }
 
@@ -44,7 +50,6 @@ class AppState:
     def show_path(self, value: bool):
         st.session_state.show_path = value
 
-
     @property
     def show_route(self) -> bool:
         return st.session_state.show_route
@@ -60,6 +65,22 @@ class AppState:
     @show_kml_points.setter
     def show_kml_points(self, value: bool):
         st.session_state.show_kml_points = value
+
+    @property
+    def show_co2_heatmap(self) -> bool:
+        return st.session_state.show_co2_heatmap
+
+    @show_co2_heatmap.setter
+    def show_co2_heatmap(self, value: bool):
+        st.session_state.show_co2_heatmap = value
+
+    @property
+    def heatmap_settings(self) -> Dict[str, Any]:
+        return st.session_state.heatmap_settings
+
+    @heatmap_settings.setter
+    def heatmap_settings(self, value: Dict[str, Any]):
+        st.session_state.heatmap_settings = value
 
     @property
     def enabled_layers(self) -> set:
