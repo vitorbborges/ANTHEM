@@ -187,6 +187,7 @@ data/raw_data/*
 # Allow again only the two whitelisted files (re-asserting them)
 !data/raw_data/points_of_interest.kmz
 !data/raw_data/route.kmz
+!data/raw_data/fvc_data.csv
 
 cache/
 
