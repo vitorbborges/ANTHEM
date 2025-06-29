@@ -75,15 +75,27 @@ class AppConfig:
                     },
                     color="#1f77b4",
                 ),
-                "Industry": LayerConfig(tags={"landuse": True}, color="#9FE2BF"),
-                "Smoking Shop": LayerConfig(tags={"shop": "tobacco"}, color="#adad85"),
-                "Chimney": LayerConfig(tags={"man_made": True}, color="#9467bd"),
-                "Public Transport": LayerConfig(
-                    tags={"public_transport": True}, color="#d62728"
-                ),
+                
                 "Green Spaces": LayerConfig(
-                    tags={"leisure": ["park", "garden"]}, color="#25a046"
+                    tags={"leisure": ["park", "garden"]}, color="#52cc9b"
                 ),
+
+                "Trees": LayerConfig(
+                    tags={"natural": "tree"}, color="#52cc9b"
+                ),
+
+                "Industry": LayerConfig(tags={"landuse": "industrial", "building": "industrial"}, color="#9FE2BF"),
+                "Smoking Shop": LayerConfig(tags={"shop": "tobacco"}, color="#adad85"),
+                "Smoking amenity": LayerConfig(tags={"smoking": ["yes", "outside"]}, color="#adad85"),
+                #"Chimney": LayerConfig(tags={"man_made": True}, color="#9467bd"),
+                "Public Transport": LayerConfig(
+                    tags={"public_transport": True}, color="#cbb318"
+                ),
+                "Railway": LayerConfig(
+                    tags={"landuse": "railway"}, color="#cbb318"
+                ),
+
+                "Fuel Station": LayerConfig(tags={"amenity": "fuel"}, color="#d62728"),
             }
 
     @classmethod

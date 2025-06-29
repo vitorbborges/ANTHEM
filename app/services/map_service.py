@@ -63,7 +63,7 @@ class MapService:
                 if geom.geom_type == "Point":
                     folium.CircleMarker(
                         location=[geom.y, geom.x],
-                        radius=4,
+                        radius=2,
                         color=color,
                         fill=True,
                         fill_opacity=0.7,
