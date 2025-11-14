@@ -370,8 +370,52 @@ def create_k_neighbors(trial: optuna.Trial, X: pd.DataFrame = None):
     )
 
 
+class ParameterizedKrigingRegressor(StableKrigingRegressor):
+    """Extended version that accepts kriging parameters."""
+
+    def __init__(
+        self, drift_model=None, use_kriging=True, kriging_params=None, verbose=False
+    ):
+        super().__init__(drift_model, use_kriging, verbose)
+        self.kriging_params = kriging_params or {}
+
+    def _inverse_distance_interpolation(self, test_coords):
+        """Enhanced IDW with configurable parameters."""
+        # Use parameters from kriging_params if available
+        power = self.kriging_params.get("idw_power", 2)
+        max_distance = self.kriging_params.get("max_distance", 1000)
+        regularization = self.kriging_params.get("regularization", 1e-10)
+
+        predictions = np.zeros(len(test_coords))
+
+        for i, test_point in enumerate(test_coords):
+            # Calculate distances to all training points
+            distances = np.sqrt(np.sum((self.train_coords_ - test_point) ** 2, axis=1))
+
+            # Avoid division by zero with regularization
+            distances = np.maximum(distances, regularization)
+
+            # Inverse distance weights
+            weights = 1.0 / (distances**power)
+
+            # Limit influence of very distant points
+            mask = distances < max_distance
+            if np.any(mask):
+                weights = weights * mask
+
+            # Weighted average
+            if np.sum(weights) > 0:
+                predictions[i] = np.sum(weights * self.train_residuals_) / np.sum(
+                    weights
+                )
+            else:
+                predictions[i] = 0.0
+
+        return predictions
+
+
 def create_stable_kriging_model(trial: optuna.Trial, X: pd.DataFrame):
-    """Create a stable kriging model with better error handling."""
+    """Create a stable kriging model with optimizable parameters."""
 
     # Choose drift model
     drift_model_choice = trial.suggest_categorical(
@@ -389,9 +433,26 @@ def create_stable_kriging_model(trial: optuna.Trial, X: pd.DataFrame):
     # Option to disable kriging for stability
     use_kriging = trial.suggest_categorical("use_kriging", [True, False])
 
-    return StableKrigingRegressor(
-        drift_model=drift_model, use_kriging=use_kriging, verbose=False
-    )
+    # Only optimize kriging parameters if kriging is enabled
+    if use_kriging:
+        kriging_params = {
+            "idw_power": trial.suggest_float("idw_power", 1.0, 3.0),
+            "max_distance": trial.suggest_float("max_distance", 100, 2000, log=True),
+            "regularization": trial.suggest_float(
+                "regularization", 1e-10, 1e-6, log=True
+            ),
+        }
+
+        return ParameterizedKrigingRegressor(
+            drift_model=drift_model,
+            use_kriging=use_kriging,
+            kriging_params=kriging_params,
+            verbose=False,
+        )
+    else:
+        return StableKrigingRegressor(
+            drift_model=drift_model, use_kriging=use_kriging, verbose=False
+        )
 
 
 def create_pipeline(trial: optuna.Trial, X: pd.DataFrame) -> Pipeline:

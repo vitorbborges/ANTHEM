@@ -49,10 +49,10 @@ class ProcessSubjectPipeline:
     """
     Orchestrator for processing a single subject's data through:
       1. Loading raw GPS and route (KML/KMZ) data,
-      2. Extracting static and dynamic spatial features with resampling,
+      2. Extracting static and dynamic spatial features with both interpolation and resampling,
       3. Applying TOML-defined feature specifications,
       4. Optionally joining weather observations,
-      5. Saving the processed DataFrame.
+      5. Saving both processed DataFrames with different suffixes.
     """
 
     def __init__(self, bbox: tuple):
@@ -62,29 +62,28 @@ class ProcessSubjectPipeline:
         self.weather_processor = WeatherProcessor
         self.specs_file = CONFIG_TOML
 
-    def run(self, subject_id: int, job_id: int = 0) -> pd.DataFrame:
-        # Use absolute paths based on PROJECT_ROOT so Hydra's working dir doesn't break us
-        raw_dir = PROJECT_ROOT / "data" / "raw_data"
-        out_dir = PROJECT_ROOT / "data" / "processed_data"
+    def process_dataframe(
+        self, df: pd.DataFrame, subject_id: int, job_id: int = 0
+    ) -> pd.DataFrame:
+        """
+        Apply feature extraction and weather data to a DataFrame.
 
-        # Load raw subject measurements and tag with subject_id
-        data = load_subject(subject_id)
-        data["subject_id"] = subject_id
+        Parameters
+        ----------
+        df : pd.DataFrame
+            DataFrame with x, y coordinates and CO2 measurements
+        subject_id : int
+            Subject identifier
+        job_id : int, default=0
+            Job ID for progress bar positioning
 
-        # Extract route and sensor segments using the loader
-        kml = self.extractor.loader.extract_kml(raw_dir / "route.kmz")
-        segments = self.extractor.loader.build_segments(kml)
-
-        # Extract only dynamic points with resampling using the new method
-        # Skip static data processing for now
-        df = self.extractor.resample_dynamic(
-            data, segments, subject_id, interpolation_meters=5
-        )
-
-        # If DataFrame is empty, save empty result and return
+        Returns
+        -------
+        pd.DataFrame
+            Processed DataFrame with features and weather data
+        """
+        # If DataFrame is empty, return as-is
         if df.empty:
-            out_dir.mkdir(parents=True, exist_ok=True)
-            df.to_parquet(out_dir / f"S{subject_id}-coords.parquet")
             return df
 
         # Reset index for proper timestamp conversion
@@ -137,6 +136,7 @@ class ProcessSubjectPipeline:
                         )
 
         # If weather raw directories exist, parse and interpolate weather data
+        raw_dir = PROJECT_ROOT / "data" / "raw_data"
         wdirs = list(raw_dir.glob("RW_*"))
         if wdirs:
             try:
@@ -149,10 +149,55 @@ class ProcessSubjectPipeline:
                     f"Warning: Failed to process weather data for subject {subject_id}: {e}"
                 )
 
-        # Ensure output directory exists and write parquet file
-        out_dir.mkdir(parents=True, exist_ok=True)
-        df.to_parquet(out_dir / f"S{subject_id}-coords.parquet")
         return df
+
+    def run(
+        self, subject_id: int, job_id: int = 0
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        # Use absolute paths based on PROJECT_ROOT so Hydra's working dir doesn't break us
+        raw_dir = PROJECT_ROOT / "data" / "raw_data"
+        out_dir = PROJECT_ROOT / "data" / "processed_data"
+
+        # Load raw subject measurements and tag with subject_id
+        data = load_subject(subject_id)
+        data["subject_id"] = subject_id
+
+        # Extract route and sensor segments using the loader
+        kml = self.extractor.loader.extract_kml(raw_dir / "route.kmz")
+        segments = self.extractor.loader.build_segments(kml)
+
+        # Extract static data using the old method
+        static_df = self.extractor.extract_static(data, kml)
+
+        # Method 1: Original interpolated approach (from older version)
+        dynamic_interpolated = self.extractor.extract_dynamic(data, segments)
+        df_interpolated = pd.concat([static_df, dynamic_interpolated]).sort_index()
+
+        # Method 2: New resampled approach (current version)
+        df_resampled = self.extractor.resample_dynamic(
+            data, segments, subject_id, interpolation_meters=5
+        )
+
+        # Process both DataFrames with features and weather
+        df_interpolated_processed = self.process_dataframe(
+            df_interpolated, subject_id, job_id
+        )
+        df_resampled_processed = self.process_dataframe(
+            df_resampled, subject_id, job_id
+        )
+
+        # Ensure output directory exists and write parquet files
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        # Save interpolated version with *1s suffix
+        df_interpolated_processed.to_parquet(
+            out_dir / f"S{subject_id}-coords1s.parquet"
+        )
+
+        # Save resampled version with *2m suffix
+        df_resampled_processed.to_parquet(out_dir / f"S{subject_id}-coords2m.parquet")
+
+        return df_interpolated_processed, df_resampled_processed
 
 
 # Hydra entrypoint: multi-run config
@@ -207,33 +252,41 @@ if __name__ == "__main__":
     import os
 
     # -----------------------------------------------------------------------------
-    # Data concatenation and cleanup for combined_subjects.parquet
+    # Data concatenation and cleanup for combined_subjects files
     # -----------------------------------------------------------------------------
     import pandas as pd
 
-    df = pd.concat(
-        [
-            pd.read_parquet(os.path.join("data", "processed_data", file))
-            for file in os.listdir(os.path.join("data", "processed_data"))
-            if file != "combined_subjects.parquet" and file.endswith(".parquet")
-        ]
-    )
-    # Drop unwanted column if exists
-    df.drop(columns=["PM25"], inplace=True, errors="ignore")
-    # Fill missing values for key features
-    fill_zero_cols = [
-        "average_nearby_num_lanes_50",
-        "average_nearby_maxspeed_50",
-        "average_nearby_streets_len_50",
-        "average_building_height_100",
-        "average_building_height_200",
-    ]
-    for col in fill_zero_cols:
-        if col in df.columns:
-            # Fill NaN values with 0 for specified columns
-            df.loc[df[col].isna(), col] = 0
-    # Drop any remaining missing rows
-    df.dropna(inplace=True)
-    # Write combined parquet
-    output_path = os.path.join("data", "processed_data", "combined_subjects.parquet")
-    df.to_parquet(output_path)
+    # Process both interpolated and resampled versions
+    for suffix in ["1s", "2m"]:
+        try:
+            df = pd.concat(
+                [
+                    pd.read_parquet(os.path.join("data", "processed_data", file))
+                    for file in os.listdir(os.path.join("data", "processed_data"))
+                    if file.endswith(f"{suffix}.parquet") and file.startswith("S")
+                ]
+            )
+            # Drop unwanted column if exists
+            df.drop(columns=["PM25"], inplace=True, errors="ignore")
+            # Fill missing values for key features
+            fill_zero_cols = [
+                "average_nearby_num_lanes_50",
+                "average_nearby_maxspeed_50",
+                "average_nearby_streets_len_50",
+                "average_building_height_100",
+                "average_building_height_200",
+            ]
+            for col in fill_zero_cols:
+                if col in df.columns:
+                    # Fill NaN values with 0 for specified columns
+                    df.loc[df[col].isna(), col] = 0
+            # Drop any remaining missing rows
+            df.dropna(inplace=True)
+            # Write combined parquet
+            output_path = os.path.join(
+                "data", "processed_data", f"combined_subjects{suffix}.parquet"
+            )
+            df.to_parquet(output_path)
+            print(f"Created combined file: {output_path}")
+        except Exception as e:
+            print(f"Warning: Failed to create combined file for {suffix}: {e}")

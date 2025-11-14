@@ -37,7 +37,7 @@ if __name__ == "__main__":
     print()
 
     # Run optimization with fewer trials initially to test stability
-    study = runner.run(n_trials=20)  # Start with 5 trials to test
+    study = runner.run(n_trials=5)  # Start with 5 trials to test
 
     print("\n🎉 Optimization completed!")
     print("If results look good, you can increase n_trials and n_trials_per_subject")
