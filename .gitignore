@@ -198,3 +198,6 @@ metrics/
 models/
 
 src/data_processing/osmnx_cache
+
+GEMINI.md
+
