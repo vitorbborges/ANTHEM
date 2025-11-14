@@ -1,4 +1,4 @@
-# ANTHEM: AVOIDING AND ASSESSING THE EXPOSURE TO AIR POLLUTANTS IN AN URBAN ENVIRONMENT
+# ANTHEM: ASSESSING THE EXPOSURE TO AIR POLLUTANTS IN AN URBAN ENVIRONMENT
 
 This repository contains the code and resources for the ANTHEM project, a research initiative focused on understanding and mitigating exposure to air pollutants in urban environments. The project combines geospatial data analysis, machine learning, and an interactive web application to provide a comprehensive tool for researchers and the public.
 
@@ -8,20 +8,20 @@ This repository contains the code and resources for the ANTHEM project, a resear
 
 The ANTHEM project aims to:
 
-*   Develop a high-resolution model of CO₂ concentrations in an urban environment using a variety of data sources, including sensor data, OpenStreetMap, and weather data.
-*   Create an interactive web application that allows users to visualize CO₂ concentrations, plan routes with minimal exposure, and understand the factors that contribute to air pollution.
-*   Provide a platform for researchers to explore the relationship between urban form, human activity, and air quality.
+- Develop a high-resolution model of CO₂ concentrations in an urban environment using a variety of data sources, including sensor data, OpenStreetMap, and weather data.
+- Create an interactive web application that allows users to visualize CO₂ concentrations, plan routes with minimal exposure, and understand the factors that contribute to air pollution.
+- Provide a platform for researchers to explore the relationship between urban form, human activity, and air quality.
 
 ## Directory Structure
 
 The project is organized into the following main directories:
 
-*   `app/`: Contains the source code for the Streamlit web application.
-*   `data/`: Contains the raw and processed data used in the project. (Note: This directory is in `.gitignore` to protect sensitive data).
-*   `notebooks/`: Contains Jupyter Notebooks for data exploration, feature engineering, and model development.
-*   `src/`: Contains the source code for the data processing, modeling, and visualization pipelines.
-*   `output/`: Contains the output of the data processing and modeling pipelines, including predictions and plots.
-*   `models/`: Contains the trained machine learning models.
+- `app/`: Contains the source code for the Streamlit web application.
+- `data/`: Contains the raw and processed data used in the project. (Note: This directory is in `.gitignore` to protect sensitive data).
+- `notebooks/`: Contains Jupyter Notebooks for data exploration, feature engineering, and model development.
+- `src/`: Contains the source code for the data processing, modeling, and visualization pipelines.
+- `output/`: Contains the output of the data processing and modeling pipelines, including predictions and plots.
+- `models/`: Contains the trained machine learning models.
 
 ## Main Pipeline
 
@@ -77,3 +77,4 @@ We cannot test code using remote GitHub Actions or cloud-based services that mig
 ## License
 
 This project is licensed under the MIT License. See the `LICENSE` file for details.
+
